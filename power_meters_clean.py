@@ -5,6 +5,9 @@ from datetime import datetime, timedelta
 import os
 import matplotlib.pyplot as plt
 import struct
+import calendar
+from openpyxl.styles import Font, PatternFill
+
 
 METERS = []
 NONXLSFILES = 0
@@ -125,7 +128,7 @@ def plot_dates_vs_totals(obj, output_filename):
     p2 = ax1.bar(dates, on_ps, bottom=[sum(x) for x in zip(wknds, off_ps)], color='#014d64', width=0.6, label='On Peak')
 
     ax1.set_xlabel('Dates')
-    ax1.set_ylabel('Usage')
+    ax1.set_ylabel('Usage (kwH)')
     ax1.set_title(f'Dates vs. Usage for {obj.name}')
     ax1.grid(axis='y', linestyle='--', alpha=0.7)
 
@@ -137,7 +140,7 @@ def plot_dates_vs_totals(obj, output_filename):
 
     # Plot the accumulation data on the right y-axis
     ax2.plot(dates, accumulations, color='#90353B', marker='o', label='Accumulation')
-    ax2.set_ylabel('Accumulation')
+    ax2.set_ylabel('Accumulation (kwH)')
 
     # Combine the handles for bars and lines for a single legend
     handles, labels = ax1.get_legend_handles_labels()
@@ -153,6 +156,7 @@ def plot_dates_vs_totals(obj, output_filename):
     output_filename = output_filename.replace('.', '_')
     print(f"Saving image file with name: {output_filename}")
     plt.savefig(output_filename + '.png')
+    # plt.show()
     plt.close()
 
     # Save the data used in the plots
@@ -160,8 +164,127 @@ def plot_dates_vs_totals(obj, output_filename):
     sheet = wb.active
     sheet.append(["Date", "Off Peak", "On Peak", "Weekend", "Total"])
     for i in range(0, len(dates)):
-        sheet.append([dates[i], off_ps[i], on_ps[i], wknds[i], totals[i]])
+        sheet.append([dates[i].strftime("%d-%b-%y"), off_ps[i], on_ps[i], wknds[i], totals[i]])
     wb.save(f"{output_filename}.xlsx")
+
+def set_uniform_spacing(worksheet, start_column, end_column, width):
+    for col_idx in range(start_column, end_column + 1):
+        column_letter = openpyxl.utils.get_column_letter(col_idx)
+        worksheet.column_dimensions[column_letter].width = width
+
+
+def update_merged_cell_value(worksheet, row, column, value):
+    # Get the merged cell range containing the cell at (row, column)
+    for cell_range in worksheet.merged_cells.ranges:
+        min_col, min_row, max_col, max_row  = cell_range.bounds
+        if (min_row <= row <= max_row) and (min_col <= column <= max_col):
+            # Unmerge the cells within the range
+            worksheet.unmerge_cells(str(cell_range))
+            # Update the value in each cell within the merged cell range
+            for r in range(min_row, max_row + 1):
+                for c in range(min_col, max_col + 1):
+                    worksheet.cell(row=r, column=c, value=value)
+            # Merge the cells again
+            worksheet.merge_cells(start_row=min_row, start_column=min_col,
+                                  end_row=max_row, end_column=max_col)
+            # Break the loop after updating the merged cell range
+            break
+
+
+def is_weekend_day(date_string):
+    # Convert the date string to a date object
+    date_obj = datetime.strptime(date_string, "%d-%b-%y").date()
+
+    # Check if the day of the week is Saturday (5) or Sunday (6)
+    return date_obj.weekday() in [5, 6]
+
+
+def write_data_to_excel(meters_class_list, file_path, month, sheet_name):
+    # print(dictionary)
+    wb = openpyxl.load_workbook(file_path)
+    
+    # Check if a sheet with the same name already exists
+    if sheet_name in wb.sheetnames:
+        wb.remove(wb[sheet_name])  # Remove the existing sheet
+    
+    template_sheet = wb["template"]  # Assuming the data should be written to Sheet1
+
+    new_sheet_name = sheet_name
+    sheet = wb.copy_worksheet(template_sheet)
+    sheet.title = new_sheet_name
+
+    update_merged_cell_value(sheet, 1, 3, month)
+
+    # Get the number of days in the given month
+    month_num_days = calendar.monthrange(2023, list(calendar.month_abbr).index(month[:3]))[1]
+
+    # Delete excess columns in the template sheet
+    col_start = 2
+    col_end = sheet.max_column - 1
+    if col_end > month_num_days + 1:
+        delete_cols = sheet.iter_cols(min_col=col_start + month_num_days + 1, max_col=col_end)
+        for col in delete_cols:
+            sheet.delete_cols(col[0].column)
+
+    wb.save(file_path)
+
+    col_start = 3
+    col_end = sheet.max_column - 1
+
+    # Get the dates in the first row starting from column B and format them in the same format as dictionary dates
+    dates = [sheet.cell(row=2, column=col_idx).value for col_idx in range(col_start, col_end)]
+    month_year = meters_class_list[0].dates[0][-6:]
+    print("MONTH YEAR ", month_year)
+    dates = [f'{str(date).zfill(2)}-{month_year}' for date in dates]
+
+    # Create a dictionary to map between the two date formats
+    date_map = {}
+    for idx, date in enumerate(dates):
+        num_date = date
+        date_map[num_date] = idx + col_start  # Add 2 to match the column index
+
+    weekend_fill = PatternFill(start_color='ADD8E6', end_color='ADD8E6', fill_type='solid')
+
+    # Find the column indices of the weekend dates
+    weekend_cols = [col_idx for col_idx, date in enumerate(dates, start=col_start) if is_weekend_day(date)]
+
+    # Write data to the table
+    row_idx = 3
+    for meter in METERS:
+        # Write the meter name in the first column
+        meter_name = meter.name
+        update_merged_cell_value(sheet, row_idx, 1, meter_name)
+
+        for i in range(0, len(meter.dates)):
+            date_str = meter.dates[i]
+            off_p_val = meter.off_peaks[i]
+            on_p_val = meter.on_peaks[i]
+            wknd_val = meter.weekends[i]
+            total_val = meter.totals[i]
+            col_idx = date_map[date_str]
+
+            cell = sheet.cell(row=row_idx, column=col_idx, value=off_p_val)
+            cell = sheet.cell(row=row_idx+1, column=col_idx, value=on_p_val)
+            cell = sheet.cell(row=row_idx+2, column=col_idx, value=wknd_val)
+            cell = sheet.cell(row=row_idx+3, column=col_idx, value=total_val)
+
+        # Apply the weekend_fill to the entire row for the weekend dates
+        for col in weekend_cols:
+            weekend_cell = sheet.cell(row=row_idx, column=col)
+            weekend_cell.fill = weekend_fill
+            weekend_cell1 = sheet.cell(row=row_idx+1, column=col)
+            weekend_cell1.fill = weekend_fill
+            weekend_cell2 = sheet.cell(row=row_idx+2, column=col)
+            weekend_cell2.fill = weekend_fill
+            weekend_cell3 = sheet.cell(row=row_idx+3, column=col)
+            weekend_cell3.fill = weekend_fill
+
+        row_idx += 4
+
+    set_uniform_spacing(sheet, col_start, col_end + 2, width=5)
+
+    wb.save(file_path)
+
 
 # Example usage:
 folder = '80Q - Power Meters - Powernet Data/'  # Replace with the path to your Excel file
@@ -178,23 +301,26 @@ bad_files = []
 for filename in file_list[0:-1]:
     filepath = f"{folder}{filename}"
     print(f"Processing file {filename}")
-    if (filename == 'Bills_DeloitteFloorDBs_2023_07_01.xls') or (filename == 'Bills_TotalMechanical_2023_07_01.xls'): 
-        bad_files.append(filename)
-        print("SHIIIIIIIIT")
-    else:
-        all_meters = find_matching_values(filepath, name_start, date_start, off_peak, on_peak, weekend)
+    all_meters = find_matching_values(filepath, name_start, date_start, off_peak, on_peak, weekend)
 
 print(f"Total of {len(METERS)}")
 print(f"Bad files: {bad_files}")
 single_date_files = []
 for meter in METERS:
-    # print(meter.dates)
-    if len(meter.dates) == 1:
+    print(len(meter.dates))
+    if len(meter.dates) <= 1:
+        print("Meters with one time point: ", meter.name)
         for file in meter.in_files:
             if file not in single_date_files:
                 single_date_files.append(file)            
+        METERS.remove(meter)
     else:
+        print("Good to go: ", meter.name)
+        continue
         plot_dates_vs_totals(meter, f"{folder}Plot Data/{meter.name}")
 
+print(len(METERS))
 print(f"{len(single_date_files)} files with only one date: {single_date_files}")
 # plot_dates_vs_totals(METERS[0])
+
+write_data_to_excel(METERS, 'all_power_meters_table.xlsx', 'Jul', 'Jul')
