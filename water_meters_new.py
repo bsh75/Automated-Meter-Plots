@@ -21,13 +21,16 @@ def process_csv_files(folder_path, desired_month):
         # Read the CSV file into a pandas DataFrame
         file_path = f'{folder_path}/{file_name}'
         df = pd.read_csv(file_path, names=['A', 'B', 'C', 'D'])
+        # print(df)
 
         # Get the date and time from A3
         date_time_ampm_zone = df.iloc[2, 0].split()
         date_str = date_time_ampm_zone[0]
         time_str = date_time_ampm_zone[1] + date_time_ampm_zone[2]
+        # print(date_str)
 
-        if desired_month not in date_str:
+        if (desired_month not in date_str) or ('PreviousMonth' in file_name):
+            print(desired_month, date_str)
             continue
 
         # Convert date and time strings to datetime objects
@@ -40,16 +43,17 @@ def process_csv_files(folder_path, desired_month):
         total_usages = df.loc[start_index:, 'D'].tolist()
         # Get the meters from col A starting from row 5
         meters = df.loc[start_index:, 'A'].tolist()
-
+        # print(meters)
         # Add the date/total usage pair to each meter in the dictionary
         for i in range(0, len(meters)):
             meter = remove_leading_zeros(meters[i])
             total_usage = float(total_usages[i])
             if meter in meter_data_dict:
                 meter_data_dict[meter].append((date_str, total_usage))
+                # print("should be adding to meter")
             else:
                 meter_data_dict[meter] = [(date_str, total_usage)]
-
+    print(meter_data_dict)
     return meter_data_dict
 
 
@@ -313,11 +317,11 @@ def pad_missing_dates(data):
 
 
 # Folder pointing to all the water meter data from Niagara
-input_folder_path = '80Q - Water Meters/Water_PreviousDayUsage_files'
-output_folder_path = '80Q - Water Meters/Plot Data'
-desired_month = 'Jul'
+input_folder_path = 'Aug2023/Water_Data'
+output_folder_path = 'Aug2023/Plot Data'
+desired_month = 'Aug'
 # Gets a dictionary containing each meter, and a list of (datetime, usage) pairs for each
-meters_data_dict_to_plot = process_csv_files(input_folder_path, desired_month='Jul')
+meters_data_dict_to_plot = process_csv_files(input_folder_path, desired_month)
 water_meter_table_data = []
 first = True
 

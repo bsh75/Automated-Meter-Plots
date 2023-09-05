@@ -4,31 +4,34 @@ from openpyxl import Workbook
 from datetime import datetime, timedelta
 import os
 import matplotlib.pyplot as plt
-import struct
 import calendar
-from openpyxl.styles import Font, PatternFill
-
-
-METERS = []
-NONXLSFILES = 0
-ERRORS = 0
+from openpyxl.styles import PatternFill
 
 class Meter:
     '''Defines a class for each meter which contains all the information/data relating to a single meter'''
-    def __init__(self, name, dates, off_peaks, on_peaks, weekends, totals, in_files):
+    def __init__(self, name, dates, off_peaks, on_peaks, weekends, totals):
         self.name = name
         self.dates = [dates]
         self.off_peaks = [off_peaks]
         self.on_peaks = [on_peaks]
         self.weekends = [weekends]
         self.totals = [totals]
-        self.in_files = [in_files]
 
     def __str__(self):
         # Return a string representation of the class instance
         return f"MyClass: Name={self.name}, Date={self.dates}, Off Peak={self.off_peaks}, On Peak={self.on_peaks}, Weekend={self.weekends}, Total={self.totals}"
     
+class groupedMeters:
+    '''Defines a class for a group of meters which contains all the information/data relating to a single meter'''
+    def __init__(self, name, dates, off_peaks, on_peaks, weekends, totals):
+        self.name = name
+        self.dates = dates
+        self.off_peaks = off_peaks
+        self.on_peaks = on_peaks
+        self.weekends = weekends
+        self.totals = totals
 
+    
 def extract_date_times_from_string(input_string):
     '''Extracts the date from the cell associated with it as a string'''
     # Define the format of the date and time in the string
@@ -51,9 +54,18 @@ def extract_date_times_from_string(input_string):
         return start_date_time
     else:
         return None
-    
 
-def find_matching_values(excel_filename):
+def add_to_meter(name, date, off_p_usage, on_p_usage, weeknd_usage, total_usage, excel_filename, meters_list):
+    """Adds the information on meter {name} to that meters class"""
+    for meter in meters_list:
+        if meter.name == name:
+            meter.dates.append(date)
+            meter.off_peaks.append(off_p_usage)
+            meter.on_peaks.append(on_p_usage)
+            meter.weekends.append(weeknd_usage)
+            meter.totals.append(total_usage)
+
+def extract_meters_into_class(excel_filename, meters_class_list):
     name_criteria_string = 'Energy User:'  # Replace with the criteria you are looking for
     date_criteria_string = 'For Electric Usage From:'
     off_p_string = 'Off-Peak'
@@ -93,31 +105,12 @@ def find_matching_values(excel_filename):
                 # Section should only occur once the weekend value (last bit of info) has been found
                 weeknd_usage = sheet.cell_value(row, col+2)
                 total_usage = off_p_usage+on_p_usage+weeknd_usage
-                if not any(meter.name == name for meter in METERS):
-                    create_meter(name, date, off_p_usage, on_p_usage, weeknd_usage, total_usage, excel_filename)
+                if not any(meter.name == name for meter in meters_class_list):
+                    meters_class_list.append(Meter(name, date, off_p_usage, on_p_usage, weeknd_usage, total_usage))
                 else:
-                    add_to_meter(name, date, off_p_usage, on_p_usage, weeknd_usage, total_usage, excel_filename)
-                # print(f"{name}\t{date}\t{off_p_usage}\t{on_p_usage}\t{weeknd_usage}\t{total_usage}\t")
+                    add_to_meter(name, date, off_p_usage, on_p_usage, weeknd_usage, total_usage, excel_filename, meters_class_list)
 
-
-def create_meter(name, date, off_p_usage, on_p_usage, weeknd_usage, total_usage, excel_filename):
-    """Initialises a new meter and adds it to list"""
-    METERS.append(Meter(name, date, off_p_usage, on_p_usage, weeknd_usage, total_usage, excel_filename.replace(folder, '')))
-
-
-def add_to_meter(name, date, off_p_usage, on_p_usage, weeknd_usage, total_usage, excel_filename):
-    """Adds the information on meter {name} to that meters class"""
-    for meter in METERS:
-        if meter.name == name:
-            meter.dates.append(date)
-            meter.off_peaks.append(off_p_usage)
-            meter.on_peaks.append(on_p_usage)
-            meter.weekends.append(weeknd_usage)
-            meter.totals.append(total_usage)
-            meter.in_files.append(excel_filename.replace(folder, ''))
-
-
-def plot_dates_vs_totals(obj, output_filename):
+def plot_dates_vs_total_from_CLASS(obj, output_filename):
     '''Creates the plots from data associated with a single class'''
     # Get the dates and totals from the object
     dates = obj.dates
@@ -187,13 +180,11 @@ def plot_dates_vs_totals(obj, output_filename):
     #     sheet.append([dates_strings[i], off_ps[i], on_ps[i], wknds[i], totals[i]])
     wb.save(f"{output_filename}.xlsx")
 
-
 def set_uniform_spacing(worksheet, start_column, end_column, width):
     """Sets all the column widths between start column and end column to be width"""
     for col_idx in range(start_column, end_column + 1):
         column_letter = openpyxl.utils.get_column_letter(col_idx)
         worksheet.column_dimensions[column_letter].width = width
-
 
 def update_merged_cell_value(worksheet, row, column, value):
     """Updates the merged cell containing (row, col) with the value"""
@@ -213,14 +204,12 @@ def update_merged_cell_value(worksheet, row, column, value):
             # Break the loop after updating the merged cell range
             break
 
-
 def is_weekend_day(date_string):
     """Returns true if date_string is in a weekend"""
     # Convert the date string to a date object
     date_obj = datetime.strptime(date_string, "%d-%b-%y").date()
     # Check if the day of the week is Saturday (5) or Sunday (6)
     return date_obj.weekday() in [5, 6]
-
 
 def write_data_to_excel(meters_class_list, file_path, month, sheet_name):
     """Writes the data for all meters into a copy of the template sheet"""
@@ -271,7 +260,7 @@ def write_data_to_excel(meters_class_list, file_path, month, sheet_name):
 
     # Write data to the table
     row_idx = 3 # Data entry starts at row 3 (after month and days rows)
-    for meter in METERS:
+    for meter in meters_class_list:
         # Write the meter name in the first column (is a merged column)
         meter_name = meter.name
         update_merged_cell_value(sheet, row_idx, 1, meter_name)
@@ -307,56 +296,26 @@ def write_data_to_excel(meters_class_list, file_path, month, sheet_name):
 
     wb.save(file_path)
 
-def get_folder_path(default_folder):
-    user_input = input(f"Default folder: {default_folder}\nIs this the folder you want to get data from? (Y/N): ").strip().lower()
 
-    if user_input == 'y':
-        folder_path = default_folder
-    else:
-        user_folder = input("Please enter the folder path you want to use: ").strip()
-        if os.path.isdir(user_folder):
-            folder_path = user_folder
-        else:
-            print("Invalid folder path. Please re-run code")
-            folder_path = None
+def find_group_name(className, meters_name_dict):
+    for groupName, substringList in meters_name_dict.items():
+        for substring in substringList:
+            # print(substring)
+            # print(className)
+            if (substring + '-') in className:
+                return groupName
 
-    return folder_path
+def split_meter_list_into_groups(meters_dict, meterC_list):
+    meter_class_grouped_dict = {
+        'Basement': [],
+        'Common Areas': [],            
+        'Level 01-08': [],
+        'Level 09-18': []
+    }
+    for meterC in meterC_list:
+        class_name = meterC.name
+        group_name = find_group_name(class_name, meters_dict)
+        if group_name:
+            meter_class_grouped_dict[group_name].append(meterC)
 
-# Example usage:
-folder = 'Aug2023/New folder' # get_folder_path(default_folder='Aug2023\Electric_Data')  # Replace with the path to your Excel file
-output_folder = 'Aug2023\Electric Plot Data'
-
-if folder:
-    file_list = os.listdir(folder)
-
-    # Go through each file and create and fill out the meter classes 
-    for filename in file_list:
-        if filename.endswith(".xls"):
-            filepath = f"{folder}/{filename}"
-            print(f"Extracting data from: {filename}")
-            find_matching_values(filepath)
-        else:
-            print(f'{filename} is not .xls')
-
-    # for meter in METERS
-
-    # Remove any Meters that only have one associated date (of file) with them
-    print(f"Total of {len(METERS)}")
-    single_date_files = []
-    for meter in METERS:
-        if len(meter.dates) <= 1:
-            for file in meter.in_files:
-                if file not in single_date_files:
-                    single_date_files.append(file)            
-            METERS.remove(meter)
-        else:
-            # Plot all the individual plots and fill out the excel table for all meters
-            plot_dates_vs_totals(meter, f"{output_folder}/{meter.name}")
-            continue
-
-    print(f"Total of {len(METERS)} meters have sufficient data")
-    print(f"{len(single_date_files)} files with only one date: {single_date_files}")
-
-    write_data_to_excel(METERS, 'all_power_meters_table.xlsx', month='Aug', sheet_name='Aug')
-
-
+    return meter_class_grouped_dict
