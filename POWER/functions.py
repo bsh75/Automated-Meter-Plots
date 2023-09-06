@@ -7,6 +7,72 @@ import matplotlib.pyplot as plt
 import calendar
 from openpyxl.styles import PatternFill
 
+NAMES = {
+    "D43-MCC-B1-2": "Level B1 MCC 2"
+    , "D44-MCC-B1-1": "Level B1 MCC 1"
+    , "D55-DB-B3": "Level B3 DB"
+    , "D4-GEN-1-BUS": "Generator 1"
+    , "D5-GEN-2-BUS": "Generator 2"
+    , "D6-GEN-3-BUS": "Generator 3"
+    , "D9-MCC-7.2": "Level 07 MCC 7.2"
+    , "D10-LIFT-DB-3": "Lift 03 DB"
+    , "D11-CHILLER-20.3": "Chiller 03 DB"
+    , "D12-MCC-20.4": "Level 20 MCC 20.4"
+    , "D13-MCC-7.3": "Level 07 MCC 7.3"
+    , "D14-DB-SP": "Fire Panel DB"
+    , "D15-LIFT-DB-2": "Lift 02 DB"
+    , "D16-MCC-20.2": "Level 20 MCC 20.2"
+    , "D17-HOUSE-DBs": "House DBs"
+    , "D18-DB-CP": "Carpark DB"
+    , "D19-MCC-20.3": "Level 20 MCC 20.3"
+    , "D20-LIFT-DB-1": "Lift 01 DB"
+    , "D22-MCC-19.2": "Level 19 MCC 19.2"
+    , "D26-MCC-20.1": "Level 20 MCC 20.1"
+    , "D27-CHILLER-20.1": "Chiller 01 DB"
+    , "D28-MCC-19.1": "Level 19 MCC 19.1"
+    , "D29-DB-R": "Retail 01-04 DB"
+    , "D30-MCC-7.1": "Level 07 MCC 7.1"
+    , "D31-CHILLER-20.2": "Chiller 02 DB"
+    , "D41-DB-RB": "Retail 05 DB"
+    , "D42-MCC-G1": "Ground Floor MCC 1"
+    , "D7-BNZ-UPS-1": "Level 08 UPS 1"
+    , "D8-BNZ-UPS-2": "Level 08 UPS 2"
+    , "D32-DB-8": "Level 08 DB"
+    , "D33-DB-7K": "Level 07 Kitchen DB"
+    , "D34-DB-7": "Level 07 DB"
+    , "D35-DB-6": "Level 06 DB"
+    , "D36-DB-5": "Level 05 DB"
+    , "D37-DB-4": "Level 04 DB"
+    , "D38-DB-3": "Level 03 DB"
+    , "D39-DB-2": "Level 02 DB"
+    , "D40-DB-1": "Level 01 DB"
+    , "D57-DB-UDB": "Level 06 DB UDB"
+    , "D58-DB-UFB": "Level 07 FDF Supplies L1-8UFB"
+    , "D59-DB-UPS-L1": "Level 01 UPS"
+    , "D60-DB-UDA": "Level 06 DB UDA"
+    , "D61-DB-UFA": "Level 07 FDF Supplies L1-8UFA"
+    , "D62-DB-UMA": "Level 06 Machine Room UMA"
+    , "D63-DB-UPY": "Level 05 Payments"
+    , "D64-L7-Dealers": "Level 07 Dealers"
+    , "D65-L6-CommsRoom": "Level 06 Comms Room Cooler"
+    , "D66-FDFRoom-CoolerA": "Level 07 FDF Room Cooler A"
+    , "D67-FDFRoom-CoolerB": "Level 07 FDF Room Cooler B"
+    , "D68-DB-UMB": "Level 06 Machine Room UMB"
+    , "D23-DELOITTE-UPS-1": "Level 13 UPS 1"
+    , "D24-DELOITTE-UPS-2": "Level 13 UPS 2"
+    , "D25-L18-KITCHEN": "Level 18 Kitchen"
+    , "D45-DB-18": "Level 18 DB"
+    , "D46-DB-17": "Level 17 DB"
+    , "D47-DB-16": "Level 16 DB"
+    , "D48-DB-15": "Level 15 DB"
+    , "D49-DB-14": "Level 14 DB"
+    , "D50-DB-13": "Level 13 DB"
+    , "D51-DB-12": "Level 12 DB"
+    , "D52-DB-11": "Level 11 DB"
+    , "D53-DB-10": "Level 10 DB"
+    , "D54-DB-9": "Level 09 DB"
+}
+
 class Meter:
     '''Defines a class for each meter which contains all the information/data relating to a single meter'''
     def __init__(self, name, dates, off_peaks, on_peaks, weekends, totals):
@@ -211,18 +277,18 @@ def is_weekend_day(date_string):
     # Check if the day of the week is Saturday (5) or Sunday (6)
     return date_obj.weekday() in [5, 6]
 
-def write_data_to_excel(meters_class_list, file_path, month, sheet_name):
+def write_all_data_to_excel(meters_class_list, file_path, month, output_sheet_name):
     """Writes the data for all meters into a copy of the template sheet"""
     wb = openpyxl.load_workbook(file_path)
     
     # Check if a sheet with the same name already exists
-    if sheet_name in wb.sheetnames:
-        wb.remove(wb[sheet_name])  # Remove the existing sheet
+    if output_sheet_name in wb.sheetnames:
+        wb.remove(wb[output_sheet_name])  # Remove the existing sheet
     
     template_sheet = wb["template"]
 
     # Create a new sheet thats a copy of the template one
-    new_sheet_name = sheet_name
+    new_sheet_name = output_sheet_name
     sheet = wb.copy_worksheet(template_sheet)
     sheet.title = new_sheet_name
 
@@ -231,27 +297,31 @@ def write_data_to_excel(meters_class_list, file_path, month, sheet_name):
 
     # Get the number of days in the given month
     month_num_days = calendar.monthrange(2023, list(calendar.month_abbr).index(month[:3]))[1]
-    # print(month_num_days)
+    print(month_num_days)
+
     # Delete excess columns in the template sheet
-    month_col_start = 3 # 1 = A, 2 = B, 3 = C
-    month_col_end = sheet.max_column # Minus the total column
-    if (month_col_end - month_col_start) > month_num_days:
-        delete_cols = sheet.iter_cols(min_col=month_col_start + month_num_days, max_col=month_col_end)
+    heading_cols = 2 # 1 = A, 2 = B, 3 = C
+    month_col_start = heading_cols + 1
+    month_col_end = sheet.max_column -1 # Minus the total column
+    print(month_col_end)
+    if (month_col_end - heading_cols) > month_num_days:
+        delete_cols = sheet.iter_cols(min_col=heading_cols + month_num_days, max_col=month_col_end)
         for col in delete_cols:
+            month_col_end -= 1
             sheet.delete_cols(col[0].column)
 
     wb.save(file_path)
 
     # Get the dates in the first row and format them in the same format as meter dates
-    dates_nums = [sheet.cell(row=2, column=col_idx).value for col_idx in range(month_col_start, month_col_end)]
+    dates_nums = [sheet.cell(row=2, column=col_idx).value for col_idx in range(month_col_start, month_col_end+1)]
+    print(dates_nums)
     month_year = meters_class_list[0].dates[0].strftime("%d-%b-%y")[-6:]
     dates_string = [f'{str(date_num).zfill(2)}-{month_year}' for date_num in dates_nums]
     print(dates_string)
     # Create a dictionary to map between the two date formats
     date_map = {}
-    for idx, date in enumerate(dates_string):
-        num_date = date
-        date_map[num_date] = idx + month_col_start  # Match the column index
+    for idx, date_s in enumerate(dates_string):
+        date_map[date_s] = idx + month_col_start  # Match the column index
     print(date_map)
     weekend_fill = PatternFill(start_color='ADD8E6', end_color='ADD8E6', fill_type='solid')
 
@@ -292,6 +362,101 @@ def write_data_to_excel(meters_class_list, file_path, month, sheet_name):
         row_idx += 4 # As 4 rows have been filled
 
     # Sets unifor spacing for the range specified
+    set_uniform_spacing(sheet, month_col_start, month_col_end + 2, width=5)
+
+    wb.save(file_path)
+
+def write_all_data_grouped_to_excel(meters_class_dict_byGroup, file_path, month, output_sheet_name, dates_row):
+    """Writes the data for all meters into a copy of the template sheet"""
+    wb = openpyxl.load_workbook(file_path)
+    
+    # Check if a sheet with the same name already exists
+    if output_sheet_name in wb.sheetnames:
+        wb.remove(wb[output_sheet_name])  # Remove the existing sheet
+    
+    template_sheet = wb["Power Meters - ALL - TEMPLATE"]
+
+    # Create a new sheet thats a copy of the template one
+    new_sheet_name = output_sheet_name
+    sheet = wb.copy_worksheet(template_sheet)
+    sheet.title = new_sheet_name
+
+    # Updates the merged cell containing the month
+    update_merged_cell_value(sheet, 3, 3, month)
+
+    # Get the number of days in the given month
+    month_num_days = calendar.monthrange(2023, list(calendar.month_abbr).index(month[:3]))[1]
+    print(month_num_days)
+    
+    # Delete excess columns in the template sheet
+    heading_cols = 2 # 1 = A, 2 = B, 3 = C
+    month_col_start = heading_cols + 1
+    month_col_end = 31 + heading_cols # Minus the total column
+    print(month_col_end)
+    if (month_col_end - heading_cols) > month_num_days:
+        delete_cols = sheet.iter_cols(min_col=heading_cols + month_num_days, max_col=month_col_end)
+        for col in delete_cols:
+            month_col_end -= 1
+            sheet.delete_cols(col[0].column)
+
+    wb.save(file_path)
+
+    # Get the dates in the first row and format them in the same format as meter dates
+    dates_nums = [sheet.cell(row=dates_row, column=col_idx).value for col_idx in range(heading_cols+1, month_col_end+1)]
+    # print(dates_nums)
+    month_year = meters_class_dict_byGroup['Basement'][0].dates[0].strftime("%d-%b-%y")[-6:]
+    dates_string = [f'{str(date_num).zfill(2)}-{month_year}' for date_num in dates_nums]
+    print(dates_string)
+    # Create a dictionary to map between the two date formats
+    date_map = {}
+    for idx, date_s in enumerate(dates_string):
+        date_map[date_s] = idx + month_col_start  # Match the column index
+    # print(date_map)
+    weekend_fill = PatternFill(start_color='ADD8E6', end_color='ADD8E6', fill_type='solid')
+
+    # Find the column indices of the weekend dates
+    weekend_cols = [col_idx for col_idx, date in enumerate(dates_string, start=month_col_start) if is_weekend_day(date)]
+
+    # Write data to the table
+    row_idx = dates_row +1 # Data entry starts at row 3 (after month and days rows)
+    for group_name, meter_list in meters_class_dict_byGroup.items():
+        # Udate the 
+        update_merged_cell_value(sheet, row_idx, 1, group_name)
+        row_idx += 1
+        print(row_idx)
+        for meter in meter_list:
+
+            # Write the meter name in the first column (is a merged column)
+            meter_name = NAMES[meter.name]
+            update_merged_cell_value(sheet, row_idx, 1, meter_name)
+
+            for i in range(0, len(meter.dates)):
+                date_str = meter.dates[i].strftime("%d-%b-%y")
+                off_p_val = meter.off_peaks[i]
+                on_p_val = meter.on_peaks[i]
+                wknd_val = meter.weekends[i]
+                total_val = meter.totals[i]
+                col_idx = date_map[date_str]
+
+                cell = sheet.cell(row=row_idx, column=col_idx, value=off_p_val)
+                cell = sheet.cell(row=row_idx+1, column=col_idx, value=on_p_val)
+                cell = sheet.cell(row=row_idx+2, column=col_idx, value=wknd_val)
+                cell = sheet.cell(row=row_idx+3, column=col_idx, value=total_val)
+
+            # Apply the weekend_fill to the entire row for the weekend dates
+            for col in weekend_cols:
+                weekend_cell = sheet.cell(row=row_idx, column=col)
+                weekend_cell.fill = weekend_fill
+                weekend_cell1 = sheet.cell(row=row_idx+1, column=col)
+                weekend_cell1.fill = weekend_fill
+                weekend_cell2 = sheet.cell(row=row_idx+2, column=col)
+                weekend_cell2.fill = weekend_fill
+                weekend_cell3 = sheet.cell(row=row_idx+3, column=col)
+                weekend_cell3.fill = weekend_fill
+
+            row_idx += 4 # As 4 rows have been filled
+
+    # Sets uniform spacing for the range specified
     set_uniform_spacing(sheet, month_col_start, month_col_end + 2, width=5)
 
     wb.save(file_path)

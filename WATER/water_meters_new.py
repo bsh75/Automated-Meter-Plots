@@ -142,20 +142,20 @@ def write_data_to_excel(dictionary, file_path, month, sheet_name):
     month_num_days = calendar.monthrange(2023, list(calendar.month_abbr).index(month[:3]))[1]
 
     # Delete excess columns in the template sheet
-    col_start = 2
-    col_end = sheet.max_column - 1
-    if col_end > month_num_days + 1:
-        delete_cols = sheet.iter_cols(min_col=col_start + month_num_days + 1, max_col=col_end)
+    heading_cols = 1 # 1 = A, 2 = B, 3 = C
+    month_col_start = heading_cols + 1
+    month_col_end = sheet.max_column -1 # Minus the total column
+    print(month_col_end)
+    if (month_col_end - heading_cols) > month_num_days:
+        delete_cols = sheet.iter_cols(min_col=heading_cols + month_num_days, max_col=month_col_end)
         for col in delete_cols:
+            month_col_end -= 1
             sheet.delete_cols(col[0].column)
 
     wb.save(file_path)
 
-    col_start = 2
-    col_end = sheet.max_column - 1
-
     # Get the dates in the first row starting from column B and format them in the same format as dictionary dates
-    dates = [sheet.cell(row=2, column=col_idx).value for col_idx in range(col_start, col_end)]
+    dates = [sheet.cell(row=2, column=col_idx).value for col_idx in range(month_col_start, month_col_end+1)]
     month_year = next(iter(dictionary.values()))[0][0][3:]
     dates = [f'{str(date).zfill(2)}-{month_year}' for date in dates]
 
@@ -164,11 +164,11 @@ def write_data_to_excel(dictionary, file_path, month, sheet_name):
     for idx, date in enumerate(dates):
         num_date = date
         date_map[num_date] = idx + 2  # Add 2 to match the column index
-
+    print(date_map)
     weekend_fill = PatternFill(start_color='ADD8E6', end_color='ADD8E6', fill_type='solid')
 
     # Find the column indices of the weekend dates
-    weekend_cols = [col_idx for col_idx, date in enumerate(dates, start=col_start) if is_weekend_day(date)]
+    weekend_cols = [col_idx for col_idx, date in enumerate(dates, start=month_col_start) if is_weekend_day(date)]
 
     # Write data to the table
     row_idx = 3
@@ -192,7 +192,7 @@ def write_data_to_excel(dictionary, file_path, month, sheet_name):
 
         row_idx += 1
 
-    set_uniform_spacing(sheet, col_start, col_end + 2, 4)
+    set_uniform_spacing(sheet, month_col_start, month_col_end + 2, 4)
 
     wb.save(file_path)
 
@@ -315,46 +315,49 @@ def pad_missing_dates(data):
 
     return modified_data
 
+def plot_each_meter(meters_dictionary):
+    first = True
+    for meterName, date_usage in meters_dictionary.items():
+
+        meterName = get_actual_name(meterName)
+
+        timestamp_format = "%d-%b-%y %I:%M:%S %p"
+
+        output_xlsx_filename = f'{output_folder_path}/{meterName}.xlsx'
+        plot_output_name = f'{output_folder_path}/{meterName}.png'
+
+        print(f'New files created {output_xlsx_filename} and plot {plot_output_name}')
+        plot_water_usage_with_accumulation(date_usage, meterName, plot_output_name)
+        # date_usage.insert(0, ['Date',  'Water Usage (m\u00b3)'])
+        # date_usage.append(['Up until: ', end_time])
+        output_df = pd.DataFrame(date_usage)
+        output_df.to_excel(output_xlsx_filename, index=False)
+        date_usage = pad_missing_dates(date_usage)
+
+        # Add data to the water meter table 
+        # Get the list of values
+        values = [row[1] for row in date_usage[1:-1]]
+        values.insert(0, meterName)
+        if first:
+            # Get the list of dates
+            dates_header_for_table = [row[0] for row in date_usage[:-1]]
+            first = False
+            water_meter_table_data.append(dates_header_for_table)
+        water_meter_table_data.append(values)
+    return water_meter_table_data
+
 
 # Folder pointing to all the water meter data from Niagara
-input_folder_path = 'Aug2023/Water_Data'
-output_folder_path = 'Aug2023/Plot Data'
+input_folder_path = 'WATER/Aug2023/Water_Data'
+output_folder_path = 'WATER/Aug2023/Water_Plot_Data'
 desired_month = 'Aug'
 # Gets a dictionary containing each meter, and a list of (datetime, usage) pairs for each
 meters_data_dict_to_plot = process_csv_files(input_folder_path, desired_month)
 water_meter_table_data = []
-first = True
 
-for meterName, date_usage in meters_data_dict_to_plot.items():
+# water_meter_table = plot_each_meter(meters_data_dict_to_plot)
 
-    meterName = get_actual_name(meterName)
-
-    timestamp_format = "%d-%b-%y %I:%M:%S %p"
-
-    output_xlsx_filename = f'{output_folder_path}/{meterName}.xlsx'
-    plot_output_name = f'{output_folder_path}/{meterName}.png'
-
-    print(f'New files created {output_xlsx_filename} and plot {plot_output_name}')
-    plot_water_usage_with_accumulation(date_usage, meterName, plot_output_name)
-    # date_usage.insert(0, ['Date',  'Water Usage (m\u00b3)'])
-    # date_usage.append(['Up until: ', end_time])
-    output_df = pd.DataFrame(date_usage)
-    output_df.to_excel(output_xlsx_filename, index=False)
-    date_usage = pad_missing_dates(date_usage)
-
-    # Add data to the water meter table 
-    # Get the list of values
-    values = [row[1] for row in date_usage[1:-1]]
-    values.insert(0, meterName)
-    if first:
-        # Get the list of dates
-        dates_header_for_table = [row[0] for row in date_usage[:-1]]
-        first = False
-        water_meter_table_data.append(dates_header_for_table)
-    water_meter_table_data.append(values)
-
-
-template_xlsx = f'all_water_meters_table.xlsx'
+template_xlsx = f'WATER/all_water_meters_table.xlsx'
 
 write_data_to_excel(meters_data_dict_to_plot, template_xlsx, month=desired_month, sheet_name=desired_month)
 

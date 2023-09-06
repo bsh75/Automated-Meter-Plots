@@ -5,7 +5,7 @@ month_folder = 'POWER/Aug2023'
 raw_data_folder = 'Elec_Data'
 input_data_path = f"{month_folder}/{raw_data_folder}"
 
-group_plot_data_folder = 'Elec_Plot_Data'
+group_plot_data_folder = 'Grouped_Elec_Plots'
 output_data_path = f"{month_folder}/{group_plot_data_folder}"
 
 input_files = os.listdir(input_data_path)
@@ -72,19 +72,17 @@ for key, value in meter_groups_dict.items():
     print(key, len(value))
 
 
-classes_to_plot = []
-diction = split_meter_list_into_groups(meter_groups_dict, all_METERS_list)
-for key, value in diction.items():
+group_classes_to_plot = []
+grouped_meterslist_dict = split_meter_list_into_groups(meter_groups_dict, all_METERS_list)
+for key, value in grouped_meterslist_dict.items():
     print(key, len(value))
-    classes_to_plot.append(combine_meters_in_list_to_class(grouped_METER_list=value, grouped_meter_name=key))
+    group_classes_to_plot.append(combine_meters_in_list_to_class(grouped_METER_list=value, grouped_meter_name=key))
 
-for each_group in classes_to_plot:
-    print(each_group.off_peaks)
-    plot_dates_vs_total_from_CLASS(each_group, output_filename=f"{output_data_path}/{each_group.name}")
+# Plot each of the groups and save data to excel
+# for each_group in group_classes_to_plot:
+#     print(each_group.off_peaks)
+#     plot_dates_vs_total_from_CLASS(each_group, output_filename=f"{output_data_path}/{each_group.name}")
 
-write_data_to_excel(all_METERS_list, 'POWER/all_power_meters_table.xlsx', month='Aug', sheet_name='Aug')
-# write_data_to_excel(classes_to_plot, 'POWER/grouped_power_meters_table.xlsx', month='Aug', sheet_name='Aug')
-
-
-
-    
+# Fill out sheets showing all the meter data
+# write_all_data_to_excel(all_METERS_list, 'POWER/all_power_meters_table.xlsx', month='Aug', output_sheet_name='Aug')
+write_all_data_grouped_to_excel(grouped_meterslist_dict, 'POWER/80 Queen St - Analytics Report - Calendar Data.xlsx', month='Aug', output_sheet_name='Aug', dates_row=4)
