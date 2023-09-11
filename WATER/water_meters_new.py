@@ -248,6 +248,7 @@ def group_meters(original_dict, groups_dict):
 
 
 def plot_water_usage_with_accumulation(data, meter, output_filename):
+    print(data)
     dates = [datetime.strptime(date_str, "%d-%b-%y") for date_str, _ in data]
     water_usage = [usage for _, usage in data]
 
@@ -315,7 +316,8 @@ def pad_missing_dates(data):
 
     return modified_data
 
-def plot_each_meter(meters_dictionary):
+def plot_each_meter_dict_entry(meters_dictionary, output_folder):
+    water_meter_table_data = []
     first = True
     for meterName, date_usage in meters_dictionary.items():
 
@@ -323,8 +325,8 @@ def plot_each_meter(meters_dictionary):
 
         timestamp_format = "%d-%b-%y %I:%M:%S %p"
 
-        output_xlsx_filename = f'{output_folder_path}/{meterName}.xlsx'
-        plot_output_name = f'{output_folder_path}/{meterName}.png'
+        output_xlsx_filename = f'{output_folder}/{meterName}.xlsx'
+        plot_output_name = f'{output_folder}/{meterName}.png'
 
         print(f'New files created {output_xlsx_filename} and plot {plot_output_name}')
         plot_water_usage_with_accumulation(date_usage, meterName, plot_output_name)
@@ -347,20 +349,23 @@ def plot_each_meter(meters_dictionary):
     return water_meter_table_data
 
 
+
 # Folder pointing to all the water meter data from Niagara
 input_folder_path = 'WATER/Aug2023/Water_Data'
 output_folder_path = 'WATER/Aug2023/Water_Plot_Data'
+grouped_folder_path = 'WATER/Aug2023/Water_Plot_Data/grouped'
 desired_month = 'Aug'
-# Gets a dictionary containing each meter, and a list of (datetime, usage) pairs for each
-meters_data_dict_to_plot = process_csv_files(input_folder_path, desired_month)
-water_meter_table_data = []
-
-# water_meter_table = plot_each_meter(meters_data_dict_to_plot)
-
 template_xlsx = f'WATER/all_water_meters_table.xlsx'
 
-write_data_to_excel(meters_data_dict_to_plot, template_xlsx, month=desired_month, sheet_name=desired_month)
+# Gets a dictionary containing each meter, and a list of (datetime, usage) pairs for each
+meters_data_dict_to_plot = process_csv_files(input_folder_path, desired_month)
 
+# Plot all meters and write all to excel
+# water_meter_table = plot_each_meter_dict_entry(meters_data_dict_to_plot, output_folder=output_folder_path)
+# write_data_to_excel(meters_data_dict_to_plot, template_xlsx, month=desired_month, sheet_name=desired_month)
+
+
+# Get the subgroups (first list is meters to add, second is meters to subtract)
 subgroup_add_sub_dict = {}
 subgroup_add_sub_dict['Total Building (M1+M4:M10)'] = [['M1', 'M10', 'M4', 'M5', 'M6', 'M7', 'M8', 'M9'], []]
 subgroup_add_sub_dict['Deloitte (M2+M3+M12)'] = [['M2', 'M3', 'M12'], []]
@@ -374,7 +379,19 @@ subgroup_add_sub_dict['BNZ Flushing (M13+M16+M15)'] = [['M13', 'M15', 'M16'], []
 subgroup_add_sub_dict['Deloitte Flushing (M14+M18)'] = [['M14', 'M18'], []]
 
 sub_group_dict = group_meters(meters_data_dict_to_plot, subgroup_add_sub_dict)
-for subgroup, data in sub_group_dict.items():
-    print(f"{subgroup}\n{data}")
 
-write_data_to_excel(sub_group_dict, template_xlsx, desired_month, f'Grouping for {desired_month}')
+
+# Main groups (first list is meters to add, second is meters to subtract)
+meter_groups_add_sub_dict = {
+    'Basement': [['M11', 'M13', 'M12', 'M14'], []],
+    'Common Areas': [['M05', 'M06', 'M07', 'M08', 'M09', 'M17', 'M04', 'M15', 'M03', 'M10', 'M19', 'M20'],  []],      
+    'Level 01-08': [['M01', 'M16'], []],
+    'Level 09-18': [['M02', 'M18', 'M09-01', 'M09-02', 'M18-09', 'M10-01', 'M10-02', 'M18-10'], []]
+}
+meter_groups_dict = group_meters(meters_data_dict_to_plot, meter_groups_add_sub_dict)
+for group, data in meter_groups_dict.items():
+    print(f"{group}\n{data}")
+
+grouped_meter_data_table = plot_each_meter_dict_entry(meter_groups_dict, grouped_folder_path)
+
+write_data_to_excel(meter_groups_dict, template_xlsx, desired_month, f'Grouping for {desired_month}')
