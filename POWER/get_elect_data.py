@@ -1,8 +1,9 @@
 from functions import *
 
-month_folder = 'POWER/Aug2023'
+month_folder = 'POWER/2023 09 September'  
+currentMonth = 'Sep'
 
-raw_data_folder = 'Elec_Data'
+raw_data_folder = 'Raw_Elec_Data'
 input_data_path = f"{month_folder}/{raw_data_folder}"
 
 group_plot_data_folder = 'Grouped_Elec_Plots'
@@ -17,6 +18,9 @@ for filename in input_files:
         file_path = f"{input_data_path}/{filename}"
         print(f"Extracting Data From: {filename}")
         extract_meters_into_class(file_path, all_METERS_list)
+
+for meter in all_METERS_list:
+    print(meter.dates)
 
 # for each_meter in all_METERS_list:
 #     plot_dates_vs_total_from_CLASS(each_meter, output_filename=f"{month_folder}/each_meter_data/{each_meter.name}")
@@ -85,4 +89,13 @@ for key, value in grouped_meterslist_dict.items():
 
 # Fill out sheets showing all the meter data
 # write_all_data_to_excel(all_METERS_list, 'POWER/all_power_meters_table.xlsx', month='Aug', output_sheet_name='Aug')
-write_all_data_grouped_to_excel(grouped_meterslist_dict, 'POWER/80 Queen St - Analytics Report - Calendar Data.xlsx', month='Aug', output_sheet_name='Aug', dates_row=4)
+
+print(grouped_meterslist_dict)
+print('\n\n')
+print(group_classes_to_plot)
+# for meter in group_classes_to_plot:
+#     print(meter.)
+
+write_groups_to_excel(group_classes_to_plot, 'POWER/80 Queen St - Analytics Report - Calendar Data.xlsx', currentMonth, currentMonth+'-grouped', dates_row=3)
+
+write_all_data_grouped_to_excel(grouped_meterslist_dict, 'POWER/80 Queen St - Analytics Report - Calendar Data.xlsx', currentMonth, currentMonth, dates_row=4)

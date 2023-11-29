@@ -237,14 +237,16 @@ def write_data_to_excel(dictionary, file_path, month):
 
     # Get the number of days in the given month
     month_num_days = calendar.monthrange(2023, list(calendar.month_abbr).index(month[:3]))[1]
-
+    month_num_days = 28
     # Delete excess columns in the template sheet
     col_start = 2
-    col_end = sheet.max_column - 1
+    col_end = sheet.max_column -1
     if col_end > month_num_days + 1:
-        delete_cols = sheet.iter_cols(min_col=col_start + month_num_days + 1, max_col=col_end)
-        for col in delete_cols:
-            sheet.delete_cols(col[0].column)
+        # Create a list of columns to delete in reverse order
+        cols_to_delete = [col_idx for col_idx in range(col_start + month_num_days + 1, col_end + 1)]
+        for col_idx in cols_to_delete:
+            print(f"Deleting col: {col_idx-1}")
+            sheet.delete_cols(col_idx-1)
 
     wb.save(file_path)
 
@@ -272,11 +274,12 @@ def write_data_to_excel(dictionary, file_path, month):
     for floor, values in dictionary.items():
         # Write the values corresponding to the dates in the table
         for date_str, value in values:
-            col_idx = date_map[date_str]
-            # Remove any 0's
-            if value == 0:
-                value = ''
-            cell = sheet.cell(row=row_idx, column=col_idx, value=value)
+            if desired_month in date_str:
+                col_idx = date_map[date_str]
+                # Remove any 0's
+                if value == 0:
+                    value = ''
+                cell = sheet.cell(row=row_idx, column=col_idx, value=value)
 
         # Apply the weekend_fill to the entire row for the weekend dates
         for col in weekend_cols:
@@ -289,13 +292,13 @@ def write_data_to_excel(dictionary, file_path, month):
 
     wb.save(file_path)
 
-start_sequence = '80QAfterhoursYesterday'
+start_sequence = 'Level'
 file_type = '.csv'
-folder = '80Q - Afterhours Usage'
+folder = 'AFTERHOURS/Aug-Sep'
 output_folder = 'Plot Data'
 name_gap = 4
 file_list = os.listdir(folder)
-desired_month = 'Jul'
+desired_month = 'Sep'
 
 data = []
 
@@ -307,7 +310,7 @@ for file in file_list:
         mins_data_dict = get_ahrs_data(data_frame, name_gap)
         date_data_dict = trim_data_dictionary(mins_data_dict, desired_month)
         data.append(date_data_dict)
-        # print('\n', date_data_dict)
+        print('\n', date_data_dict)
 
 # Trim data to be just one dictionary for ease of use
 single_dictionary = {}
@@ -315,7 +318,7 @@ for dictionary in data:
     for meter, date_data in dictionary.items():
         single_dictionary[meter] = date_data
 
-template_xlsx = 'after_hours_tables.xlsx'
-print(single_dictionary)
+template_xlsx = 'AFTERHOURS/after_hours_tables.xlsx'
+# print(single_dictionary)
 
 write_data_to_excel(single_dictionary, template_xlsx, desired_month)
