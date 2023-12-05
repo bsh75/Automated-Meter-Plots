@@ -184,25 +184,40 @@ def plot_dates_vs_total_from_CLASS(obj, output_filename):
     on_ps = obj.on_peaks
     wknds = obj.weekends
     totals = obj.totals
+    
+    # Create the plot
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+
+    # Create a new y-axis for plotting the accumulation data
+    ax2 = ax1.twinx()
+
+    # Set constant limits to the Y axis of each
+    if 'Basement' in obj.name:
+        ax1.set_ylim(0, 300)
+        ax2.set_ylim(0, 7200)
+    elif 'Common' in obj.name:
+        ax1.set_ylim(0, 25000)
+        ax2.set_ylim(0, 600000)
+    elif 'Level 01' in obj.name:
+        ax1.set_ylim(0, 3700)
+        ax2.set_ylim(0, 90000)
+    elif 'Level 09' in obj.name:
+        ax1.set_ylim(0, 2500)
+        ax2.set_ylim(0, 60000)
 
     # # Convert the dates to datetime objects
     dates_strings = [datetime.strftime(date, "%d-%b-%y") for date in dates]
-
-    # Plot the data
-    fig, ax1 = plt.subplots(figsize=(10, 6))
 
     # Plot the usage data on the left y-axis
     p3 = ax1.bar(dates, wknds, color='#6794a7', width=0.6, label='Weekend')
     p1 = ax1.bar(dates, off_ps, bottom=wknds, color='#7ad2f6', width=0.6, label='Off Peak')
     p2 = ax1.bar(dates, on_ps, bottom=[sum(x) for x in zip(wknds, off_ps)], color='#014d64', width=0.6, label='On Peak')
 
-    ax1.set_xlabel('Dates')
+    ax1.set_xlabel('Day')
     ax1.set_ylabel('Usage (kwH)')
     ax1.set_title(f'Dates vs. Usage for {obj.name}')
-    ax1.grid(axis='y', linestyle='--', alpha=0.7)
+    # ax1.grid(axis='y', linestyle='--', alpha=0.7)
 
-    # Create a new y-axis for plotting the accumulation data
-    ax2 = ax1.twinx()
 
     # Calculate the accumulation data (cumulative sum of totals)
     accumulations = [sum(totals[:i + 1]) for i in range(len(totals))]
@@ -218,7 +233,8 @@ def plot_dates_vs_total_from_CLASS(obj, output_filename):
 
     # Rotate x-axis labels for better visibility
     ax1.set_xticks(dates)
-    ax1.set_xticklabels(dates_strings, rotation=45, ha='right')
+    # ax1.set_xticklabels(dates_strings, rotation=45, ha='right')
+    ax1.set_xticklabels([i for i in range(1, len(dates)+1)])
 
     # Save the plot
     plt.tight_layout()
@@ -414,7 +430,7 @@ def write_all_data_grouped_to_excel(meters_class_dict_byGroup, file_path, month,
     for idx, date_s in enumerate(dates_string):
         date_map[date_s] = idx + month_col_start  # Match the column index
     # print(date_map)
-    weekend_fill = PatternFill(start_color='ADD8E6', end_color='ADD8E6', fill_type='solid')
+    weekend_fill = PatternFill(start_color='D3DEF1', end_color='D3DEF1', fill_type='solid')
 
     # Find the column indices of the weekend dates
     weekend_cols = [col_idx for col_idx, date in enumerate(dates_string, start=month_col_start) if is_weekend_day(date)]
@@ -511,29 +527,30 @@ def write_groups_to_excel(grouped_meter_list, file_path, month, output_sheet_nam
     for idx, date_s in enumerate(dates_string):
         date_map[date_s] = idx + month_col_start  # Match the column index
     # print(date_map)
-    weekend_fill = PatternFill(start_color='ADD8E6', end_color='ADD8E6', fill_type='solid')
+    weekend_fill = PatternFill(start_color='D3DEF1', end_color='D3DEF1', fill_type='solid')
 
     # Find the column indices of the weekend dates
     weekend_cols = [col_idx for col_idx, date in enumerate(dates_string, start=month_col_start) if is_weekend_day(date)]
-
     # Write data to the table
     row_idx = dates_row + 1 # Start index of data entry
 
     for meter in grouped_meter_list:
+        # print(meter.name)
         update_merged_cell_value(sheet, row_idx, 1, meter.name)
         row_idx += 1
+        # print(meter.on_peaks)
         for i in range(0, len(meter.dates)):
-                date_str = meter.dates[i].strftime("%d-%b-%y")
-                off_p_val = meter.off_peaks[i]
-                on_p_val = meter.on_peaks[i]
-                wknd_val = meter.weekends[i]
-                total_val = meter.totals[i]
-                col_idx = date_map[date_str]
-
-                cell = sheet.cell(row=row_idx, column=col_idx, value=off_p_val)
-                cell = sheet.cell(row=row_idx+1, column=col_idx, value=on_p_val)
-                cell = sheet.cell(row=row_idx+2, column=col_idx, value=wknd_val)
-                cell = sheet.cell(row=row_idx+3, column=col_idx, value=total_val)
+            date_str = meter.dates[i].strftime("%d-%b-%y")
+            off_p_val = meter.off_peaks[i]
+            on_p_val = meter.on_peaks[i]
+            wknd_val = meter.weekends[i]
+            total_val = meter.totals[i]
+            col_idx = date_map[date_str]
+            
+            cell = sheet.cell(row=row_idx, column=col_idx, value=off_p_val)
+            cell = sheet.cell(row=row_idx+1, column=col_idx, value=on_p_val)
+            cell = sheet.cell(row=row_idx+2, column=col_idx, value=wknd_val)
+            cell = sheet.cell(row=row_idx+3, column=col_idx, value=total_val)
 
         # Apply the weekend_fill to the entire row for the weekend dates
         for col in weekend_cols:
@@ -549,7 +566,7 @@ def write_groups_to_excel(grouped_meter_list, file_path, month, output_sheet_nam
         row_idx += 4 # As 4 rows have been filled
 
     # Sets uniform spacing for the range specified
-    set_uniform_spacing(sheet, month_col_start, col_end + 2, width=5)
+    # set_uniform_spacing(sheet, month_col_start, col_end + 2, width=5)
 
     wb.save(file_path)
 
@@ -574,5 +591,4 @@ def split_meter_list_into_groups(meters_dict, meterC_list):
         group_name = find_group_name(class_name, meters_dict)
         if group_name:
             meter_class_grouped_dict[group_name].append(meterC)
-
     return meter_class_grouped_dict

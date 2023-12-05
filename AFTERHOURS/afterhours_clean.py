@@ -237,7 +237,8 @@ def write_data_to_excel(dictionary, file_path, month):
 
     # Get the number of days in the given month
     month_num_days = calendar.monthrange(2023, list(calendar.month_abbr).index(month[:3]))[1]
-    month_num_days = 28
+    # month_num_days = 28
+
     # Delete excess columns in the template sheet
     col_start = 2
     col_end = sheet.max_column -1
@@ -294,11 +295,11 @@ def write_data_to_excel(dictionary, file_path, month):
 
 start_sequence = 'Level'
 file_type = '.csv'
-folder = 'AFTERHOURS/Aug-Sep'
+folder = 'AFTERHOURS/2023 11 Nov'
 output_folder = 'Plot Data'
 name_gap = 4
 file_list = os.listdir(folder)
-desired_month = 'Sep'
+desired_month = 'Nov'
 
 data = []
 
@@ -318,7 +319,7 @@ for dictionary in data:
     for meter, date_data in dictionary.items():
         single_dictionary[meter] = date_data
 
-template_xlsx = 'AFTERHOURS/after_hours_tables.xlsx'
+template_xlsx = 'AFTERHOURS/after_hours_tables_local.xlsx'
 # print(single_dictionary)
 
 write_data_to_excel(single_dictionary, template_xlsx, desired_month)

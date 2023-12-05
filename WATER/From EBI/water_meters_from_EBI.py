@@ -45,7 +45,7 @@ def extract_meter_values(dataframe):
         
         # Create a DataFrame for the current meter and reverse the order of rows
         meter_df = pd.DataFrame({'dates_col': date_time_list, 'values_col': value_list}).iloc[::-1]
-        meter_df = meter_df[:-1]  # Remove the last item
+        meter_df = meter_df  # Remove the last item
         meter_dict[meter_name] = meter_df
     return meter_dict
 
@@ -66,31 +66,72 @@ def get_relevant_info(time_usage_cols):
 
     return date_val_pair
 
+def average(arry):
+    return sum(arry)/len(arry)
+
 def plot_water_usage_with_accumulation(data, meter, output_filename):
-    dates = [datetime.strptime(date_str, "%d-%b-%y") for date_str, _ in data]
-    water_usage = [usage for _, usage in data]
+    weekday_values = []
+    weekend_values = []
+    dates = []
+    water_usage = []
+    for date_str, usage in data:
+        dates.append(datetime.strptime(date_str, "%d-%b-%y"))
+        water_usage.append(usage)
+        if is_weekend_day(date_str):
+            weekend_values.append(usage)
+        else:
+            weekday_values.append(usage)
+
+    # dates = [datetime.strptime(date_str, "%d-%b-%y") for date_str, _ in data]
+    # water_usage = [usage for _, usage in data]
 
     # Create the primary axes for the bar graph
     fig, ax1 = plt.subplots(figsize=(10, 6))
 
     # Plot the bar graph on the primary axes
     ax1.bar(dates, water_usage, align='center', alpha=0.7, label='Water Usage')
-    ax1.set_xlabel('Date')
+    ax1.set_xlabel('Day')
     ax1.set_ylabel('Water Usage ($m^3$)')  # Using LaTeX notation for m^3
-    ax1.set_title(f'{meter} Water Usage')
-    ax1.set_xticks(dates)
-    ax1.set_xticklabels([date.strftime("%d-%b-%y") for date in dates], rotation=45, ha='right')
-
+    print(meter)
     # Create the secondary axes for the accumulation line
     ax2 = ax1.twinx()
+
+    if 'Basement - Usage' == meter:
+        ax1.set_title('Basement Daily Changes and Cumulative Sum')
+        ax1.set_ylim(0, 2.5)
+        ax2.set_ylim(0, 40)
+    elif 'Common Areas - Usage' == meter:
+        ax1.set_title('Common Areas Daily Changes and Cumulative Sum')
+        ax1.set_ylim(0, 30)
+        ax2.set_ylim(0, 450)
+    elif 'Level 01-08 - Usage' == meter:
+        ax1.set_title('Level 01 - 08 Daily Changes and Cumulative Sum')
+        ax1.set_ylim(0, 40)
+        ax2.set_ylim(0, 700)
+    elif 'Level 09-18 - Usage' == meter:
+        ax1.set_title('Level 09 - 18 Daily Changes and Cumulative Sum')
+        ax1.set_ylim(0, 40)
+        ax2.set_ylim(0, 600)
+        
+    ax1.set_xticks(dates)
+    ax1.axhline(average(weekday_values), xmax=0.95, linestyle='--', color='orange', label='Weekday Avg')
+    ax1.axhline(average(weekend_values), xmax=0.95, linestyle='--', color='green', label='Weekend Avg')
+
+    # # Plot the weekday averages
+    # ax1.plot(dates, [average(weekday_values)]*len(dates), color='orange', linestyle='dashed', label='Weekday Avg')
+    # ax1.plot(dates, [average(weekend_values)]*len(dates), color='green', linestyle='dashed', label='Weekend Avg')
+
+    # ax1.set_xticklabels([date.strftime("%d-%b-%y") for date in dates], rotation=45, ha='right')
+    ax1.set_xticklabels([i for i in range(1, len(dates)+1)])
 
     # Accumulate the water usage data
     accumulated_usage = [sum(water_usage[:i + 1]) for i in range(len(water_usage))]
 
     # Plot the accumulation line on the secondary axes
     ax2.plot(dates, accumulated_usage, color='red', label='Accumulation')
-    ax2.set_ylabel('Accumulation ($m^3$)')
-    
+    ax2.set_ylabel('Cumulative Sum ($m^3$)')
+
+
     # Combine the legend for both axes
     lines, labels = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
@@ -118,7 +159,7 @@ def trim_data_dictionary(dictionary, month):
                     wanted_value = all_values[i] - all_values[i-1]
                     wanted_dates_values.append([wanted_date, wanted_value])
             else:
-                if (month in all_dates[i-1]):
+                if (month in all_dates[i-1]) and i > 1:
                     wanted_date = all_dates[i-1][0:9]
                     wanted_value = all_values[i] - all_values[i-1]
                     wanted_dates_values.append([wanted_date, wanted_value])
@@ -164,7 +205,7 @@ def trim_data_dictionary(dictionary, month):
         # end_time = timestamp_dt.strftime("%d-%b-%y (%I%p)")
         # last_usage = values[-1]-past_value
         # wanted_dates_values.append([dates[-1][:9], last_usage])
-        print(f"{meter}\n{wanted_dates_values}\n\n")
+        # print(f"{meter}\n{wanted_dates_values}\n\n")
         new_dictionary[meter] = wanted_dates_values
 
     return new_dictionary
@@ -287,7 +328,7 @@ def write_data_to_excel(dictionary, file_path, month, sheet_name):
 
     print(date_map)
 
-    weekend_fill = PatternFill(start_color='ADD8E6', end_color='ADD8E6', fill_type='solid')
+    weekend_fill = PatternFill(start_color='D3DEF1', end_color='D3DEF1', fill_type='solid')
 
     # Find the column indices of the weekend dates
     weekend_cols = [col_idx for col_idx, date in enumerate(dates, start=month_col_start) if is_weekend_day(date)]
@@ -313,6 +354,120 @@ def write_data_to_excel(dictionary, file_path, month, sheet_name):
             weekend_cell.fill = weekend_fill
 
         row_idx += 1
+
+    set_uniform_spacing(sheet, month_col_start, col_end + 2, 4)
+
+    wb.save(file_path)
+
+def write_all_data_to_new_template_excel(dictionary, subgroup_dict_ID, file_path, month, sheet_name, row_start, col_start):
+    # print(dictionary)
+    wb = openpyxl.load_workbook(file_path)
+    
+    # Check if a sheet with the same name already exists
+    if sheet_name in wb.sheetnames:
+        wb.remove(wb[sheet_name])  # Remove the existing sheet
+    
+    if 'Group' in sheet_name:
+        template_sheet = wb["Group - Template"]  # Assuming the data should be written to Sheet1
+    else:
+        template_sheet = wb["All - Template"]  # Assuming the data should be written to Sheet1
+
+    new_sheet_name = sheet_name
+    sheet = wb.copy_worksheet(template_sheet)
+    sheet.title = new_sheet_name
+
+    update_merged_cell_value(sheet, row_start-2, col_start, month)
+
+    # Get the number of days in the given month and the index of these
+    month_num_days = len(dictionary[next(iter(dictionary))])
+    month_col_start = col_start # 1 = A, 2 = B, 3 = C
+    col_end = month_num_days + month_col_start
+
+    dates = [date for date, value in dictionary[next(iter(dictionary))]]
+    # Find the column indices of the weekend dates
+    weekend_cols = [col_idx for col_idx, date in enumerate(dates, start=month_col_start) if is_weekend_day(date)]
+    weekend_fill = PatternFill(start_color='D3DEF1', end_color='D3DEF1', fill_type='solid')
+
+    # Write data to the table
+    row_idx = row_start
+    col_idx = col_start
+
+    for groupName, add_sub_lists in subgroup_dict_ID.items():
+        if 'All' in groupName:
+            metersInGroup = add_sub_lists[0]
+            update_merged_cell_value(sheet, row_idx, 1, groupName)
+            row_idx += 1
+            for meterCode in metersInGroup:
+                meterData = dictionary[meterCode]
+                meterName = get_actual_name(meterCode)
+                sheet.cell(row=row_idx, column=col_start-1, value=meterName)
+                for date, value in meterData:
+                    # if value == 0:
+                    #     value = ''
+                    cell = sheet.cell(row=row_idx, column=col_idx, value=value)
+                    if col_idx in weekend_cols:
+                        cell.fill = weekend_fill
+                    col_idx += 1
+                row_idx += 1
+                col_idx = col_start
+
+    set_uniform_spacing(sheet, month_col_start, col_end + 2, 4)
+
+    wb.save(file_path)
+
+def write_groups_to_new_template_excel(dictionary, file_path, month, sheet_name, row_start, col_start):
+    # print(dictionary)
+    wb = openpyxl.load_workbook(file_path)
+    
+    # Check if a sheet with the same name already exists
+    if sheet_name in wb.sheetnames:
+        wb.remove(wb[sheet_name])  # Remove the existing sheet
+    
+    if 'Group' in sheet_name:
+        template_sheet = wb["Group - Template"]  # Assuming the data should be written to Sheet1
+    else:
+        template_sheet = wb["All - Template"]  # Assuming the data should be written to Sheet1
+
+    new_sheet_name = sheet_name
+    sheet = wb.copy_worksheet(template_sheet)
+    sheet.title = new_sheet_name
+
+    update_merged_cell_value(sheet, row_start-3, col_start, month)
+
+    # Get the number of days in the given month and the index of these
+    month_num_days = len(dictionary[next(iter(dictionary))])
+    month_col_start = col_start # 1 = A, 2 = B, 3 = C
+    col_end = month_num_days + month_col_start
+
+    dates = [date for date, value in dictionary[next(iter(dictionary))]]
+    # Find the column indices of the weekend dates
+    weekend_cols = [col_idx for col_idx, date in enumerate(dates, start=month_col_start) if is_weekend_day(date)]
+    weekend_fill = PatternFill(start_color='D3DEF1', end_color='D3DEF1', fill_type='solid')
+
+    # Write data to the table
+    row_idx = row_start
+    col_idx = col_start
+    
+    for groupName, groupData in dictionary.items():
+        splitName = groupName.split(' - ')
+        print(splitName)
+        areaName = splitName[0]
+        subtypeName = splitName[1]
+        if 'All' not in groupName:
+            update_merged_cell_value(sheet, row_idx, 1, subtypeName)
+            print(row_idx, col_idx)
+            for date, value in groupData:
+                # if value == 0:
+                #     value = ''
+                cell = sheet.cell(row=row_idx, column=col_idx, value=value)
+                if col_idx in weekend_cols:
+                    cell.fill = weekend_fill
+                col_idx += 1
+            row_idx += 1
+            col_idx = col_start
+        else:
+            update_merged_cell_value(sheet, row_idx, 1, areaName)
+            row_idx += 1
 
     set_uniform_spacing(sheet, month_col_start, col_end + 2, 4)
 
@@ -435,17 +590,21 @@ def group_meters(original_dict, groups_dict):
 start_sequence = '80QWaterUsage'
 file_type = '.csv'
 output_folder = 'WATER/From EBI/Sep-Nov2023/Water_Plot_Data'
-desired_month = 'Nov'
+desired_month = 'November'
+desired_month = 'October'
+desired_month = 'September'
 
 # NORMAL BEHAVIOUS
-data_frame = pd.read_excel(f'WATER/From EBI/Sep-Nov2023/WaterMetersSep-Nov.xlsx')
+data_frame = pd.read_excel(f'WATER/From EBI/Sep-Nov2023/WaterMetersSep-Nov.xlsx', 'Data')
 meters_data_dict = extract_meter_values(data_frame)
-# print(meters_data_dict)
-meters_data_dict_to_plot = trim_data_dictionary(meters_data_dict, desired_month)
+print(meters_data_dict)
+meters_data_dict_to_plot = trim_data_dictionary(meters_data_dict, desired_month[:3])
 # print(meters_data_dict_to_plot)
 # print(meters_data_dict_to_plot)
 
 template_xlsx = f'WATER/all_water_meters_table.xlsx'
+template_xlsx = f'WATER/all_water_meters_table NEW FORMAT.xlsx'
+
 
 """ Un Comment this to plot and output all the individual meters and then update table with all of them"""
 # water_meter_table_data = plot_dictionary(dictionary=meters_data_dict_to_plot, output_location='WATER/Sep-Nov2023/Water_Plot_Data')
@@ -469,15 +628,29 @@ subgroup_add_sub_dict = {}
 # subgroup_add_sub_dict['BNZ Flushing (M13+M16+M15)'] = [['M13', 'M15', 'M16'], []]
 # subgroup_add_sub_dict['Deloitte Flushing (M14+M18)'] = [['M14', 'M18'], []]
 
-subgroup_add_sub_dict['Basememt'] = [['M11', 'M12', 'M13', 'M14'], []]
-subgroup_add_sub_dict['Common Areas'] = [['M5', 'M6', 'M7', 'M8', 'M9', 'M17', 'M4', 'M15', 'M3', 'M10', 'M19', 'M20'], []]
-subgroup_add_sub_dict['Level 01-08'] = [['M1', 'M16'], []]
-subgroup_add_sub_dict['Level 09-18'] = [['M2', 'M18', 'M2-09-01', 'M2-09-02', 'M2-10-01', 'M18-09', 'M2-10-02', 'M18-10'], []]
+subgroup_add_sub_dict['Basement - Usage'] = [['M11', 'M12'], []]
+subgroup_add_sub_dict['Basement - Harvest'] = [['M13', 'M14'], []]
+subgroup_add_sub_dict['Basement - SUB'] = [['M11', 'M13', 'M12', 'M14'], []]
 
+subgroup_add_sub_dict['Common Areas - Usage'] = [['M5', 'M6', 'M7', 'M8', 'M9', 'M4', 'M3', 'M10'], []]
+subgroup_add_sub_dict['Common Areas - Harvest'] = [['M17', 'M15', 'M19', 'M20'], []]
+subgroup_add_sub_dict['Common Areas - SUB'] = [['M5', 'M6', 'M7', 'M8', 'M9', 'M17', 'M4', 'M15', 'M3', 'M10', 'M19', 'M20'],  []]
+
+subgroup_add_sub_dict['Level 01-08 - Usage'] = [['M1'], []]
+subgroup_add_sub_dict['Level 01-08 - Harvest'] = [['M16'], []]
+subgroup_add_sub_dict['Level 01-08 - SUB'] = [['M1', 'M16'], []]
+
+subgroup_add_sub_dict['Level 09-18 - Usage'] = [['M2', 'M2-09-1', 'M2-09-2', 'M2-10-1', 'M2-10-2'], []]
+subgroup_add_sub_dict['Level 09-18 - Harvest'] = [['M18', 'M18-09', 'M18-10'], []]
+subgroup_add_sub_dict['Level 09-18 - All'] = [['M2', 'M18', 'M2-09-1', 'M2-09-2', 'M18-09', 'M2-10-1', 'M2-10-2', 'M18-10'], []]
 
 sub_group_dict = group_meters(meters_data_dict_to_plot, subgroup_add_sub_dict)
-water_meter_table_data = plot_dictionary(dictionary=sub_group_dict, output_location='WATER/From EBI/Sep-Nov2023/Water_Grouped_Plot_Data')
-for subgroup, data in sub_group_dict.items():
-    print(f"{subgroup}\n{data}")
 
-write_data_to_excel(sub_group_dict, template_xlsx, desired_month, f'Grouping for {desired_month}')
+# print("--------------------------------------------------------------\n", sub_group_dict, "\n----------------------------------------------------------------------")
+# Get plots
+# water_meter_table_data = plot_dictionary(dictionary=meters_data_dict_to_plot, output_location=f'WATER/From EBI/Sep-Nov2023/Water_Plot_Data/{desired_month[:3]}')
+water_meter_grouped_table_data = plot_dictionary(dictionary=sub_group_dict, output_location=f'WATER/From EBI/Sep-Nov2023/Water_Grouped_Plot_Data/{desired_month[:3]}')
+
+
+# write_all_data_to_new_template_excel(meters_data_dict_to_plot, subgroup_add_sub_dict, template_xlsx, desired_month, desired_month[:3], row_start=4, col_start=3)
+# write_groups_to_new_template_excel(sub_group_dict, template_xlsx, desired_month, "Groups - "+desired_month[:3], row_start=5, col_start=3)
