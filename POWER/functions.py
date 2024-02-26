@@ -176,6 +176,51 @@ def extract_meters_into_class(excel_filename, meters_class_list):
                 else:
                     add_to_meter(name, date, off_p_usage, on_p_usage, weeknd_usage, total_usage, excel_filename, meters_class_list)
 
+def extract_PN_meters_into_dict(excel_filename, meters_class_list):
+    name_criteria_string = 'Energy User:'  # Replace with the criteria you are looking for
+    date_criteria_string = 'For Electric Usage From:'
+    off_p_string = 'Off-Peak'
+    on_p_string = 'On-Peak'
+    weeknd_string = 'Weekend'
+    '''Looks in a single file (corresponding to a sinlge date) and creates or adds to existing meter class for each meter found'''
+    try:
+        # Need to use xlrd for xls (old excel) files
+        workbook = xlrd.open_workbook(excel_filename)
+        sheet = workbook.sheet_by_index(0)  # Assuming you want to work with the first sheet
+    except xlrd.biffh.XLRDError:
+        print(f"{excel_filename} is not a xls file, SKIPPING... ")
+        return
+    # Iterate through all cells to find relevant information
+    for row in range(sheet.nrows):
+        for col in range(sheet.ncols):
+            cell_value = str(sheet.cell_value(row, col))
+            # Get the name of meter
+            if cell_value.startswith(name_criteria_string):
+                name = cell_value.replace(name_criteria_string, '')
+            # Get the start of the period as the date for usage
+            elif cell_value.startswith(date_criteria_string):
+                date = extract_date_times_from_string(cell_value)
+                # target_datetime = datetime(2023, 9, 26, 0, 0, 0)
+                if not date:
+                    print(f"WARNING!! {name} period is not 1 day, SKIPPING file...... ({excel_filename})")
+                    return
+                # if date == target_datetime:
+                #     date = datetime(2023, 8, 26, 0, 0, 0)
+                # print(date)
+            # Get off peak, on peak, and weekend breakdown
+            elif cell_value == off_p_string:
+                off_p_usage = sheet.cell_value(row, col+2)
+            elif cell_value == on_p_string:
+                on_p_usage = sheet.cell_value(row, col+2)
+            elif cell_value == weeknd_string:
+                # Section should only occur once the weekend value (last bit of info) has been found
+                weeknd_usage = sheet.cell_value(row, col+2)
+                total_usage = off_p_usage+on_p_usage+weeknd_usage
+                if not any(meter.name == name for meter in meters_class_list):
+                    meters_class_list.append(Meter(name, date, off_p_usage, on_p_usage, weeknd_usage, total_usage))
+                else:
+                    add_to_meter(name, date, off_p_usage, on_p_usage, weeknd_usage, total_usage, excel_filename, meters_class_list)
+
 def plot_dates_vs_total_from_CLASS(obj, output_filename):
     '''Creates the plots from data associated with a single class'''
     # Get the dates and totals from the object

@@ -12,12 +12,14 @@ output_data_path = f"{month_folder}/{group_plot_data_folder}"
 input_files = os.listdir(input_data_path)
 
 all_METERS_list = []
+all_METERS_dict = {}
 ### Get a class for each meter to store the data
 for filename in input_files:
     if filename.endswith(".xls"):
         file_path = f"{input_data_path}/{filename}"
         print(f"Extracting Data From: {filename}")
-        extract_meters_into_class(file_path, all_METERS_list)
+        # extract_meters_into_class(file_path, all_METERS_list)
+        extract_PN_meters_into_dict(file_path, all_METERS_dict)
 
 for meter in all_METERS_list:
     print(meter.dates)

@@ -295,11 +295,11 @@ def write_data_to_excel(dictionary, file_path, month):
 
 start_sequence = 'Level'
 file_type = '.csv'
-folder = 'AFTERHOURS/2023 11 Nov'
+folder = '2023 12 Dec'
 output_folder = 'Plot Data'
 name_gap = 4
 file_list = os.listdir(folder)
-desired_month = 'Nov'
+desired_month = 'Dec'
 
 data = []
 
@@ -319,7 +319,7 @@ for dictionary in data:
     for meter, date_data in dictionary.items():
         single_dictionary[meter] = date_data
 
-template_xlsx = 'AFTERHOURS/after_hours_tables_local.xlsx'
+template_xlsx = 'after_hours_tables_local.xlsx'
 # print(single_dictionary)
 
 write_data_to_excel(single_dictionary, template_xlsx, desired_month)
