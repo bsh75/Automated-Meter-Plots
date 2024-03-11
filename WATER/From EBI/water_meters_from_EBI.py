@@ -97,21 +97,21 @@ def plot_water_usage_with_accumulation(data, meter, output_filename):
     ax2 = ax1.twinx()
 
     if 'Basement - Usage' == meter:
-        ax1.set_title('Basement Daily Changes and Cumulative Sum')
+        # ax1.set_title('Basement Daily Changes and Cumulative Sum')
         ax1.set_ylim(0, 2.5)
-        ax2.set_ylim(0, 40)
+        ax2.set_ylim(0, 30)
     elif 'Common Areas - Usage' == meter:
-        ax1.set_title('Common Areas Daily Changes and Cumulative Sum')
-        ax1.set_ylim(0, 30)
-        ax2.set_ylim(0, 450)
+        # ax1.set_title('Common Areas Daily Changes and Cumulative Sum')
+        ax1.set_ylim(0, 50)
+        ax2.set_ylim(0, 800)
     elif 'Level 01-08 - Usage' == meter:
-        ax1.set_title('Level 01 - 08 Daily Changes and Cumulative Sum')
-        ax1.set_ylim(0, 40)
-        ax2.set_ylim(0, 700)
+        # ax1.set_title('Level 01 - 08 Daily Changes and Cumulative Sum')
+        ax1.set_ylim(0, 55)
+        ax2.set_ylim(0, 900)
     elif 'Level 09-18 - Usage' == meter:
-        ax1.set_title('Level 09 - 18 Daily Changes and Cumulative Sum')
-        ax1.set_ylim(0, 40)
-        ax2.set_ylim(0, 600)
+        # ax1.set_title('Level 09 - 18 Daily Changes and Cumulative Sum')
+        ax1.set_ylim(0, 55)
+        ax2.set_ylim(0, 900)
         
     ax1.set_xticks(dates)
     ax1.axhline(average(weekday_values), xmax=0.95, linestyle='--', color='orange', label='Weekday Avg')
@@ -415,6 +415,14 @@ def write_all_data_to_new_template_excel(dictionary, subgroup_dict_ID, file_path
 
     wb.save(file_path)
 
+# def get_row_idx(sheet, areaName, subtypeName):
+    # for index, row in enumerate(sheet.iter_rows(min_row=0, max_row=sheet.max_row, min_col=0, max_col=sheet.max_col)):
+    #     for cell in row:
+    #         contents = cell.value
+    #         if contents == areaName:
+    #             areaFlag = True
+    #         if contents == subtypeName and areaFlag:
+
 def write_groups_to_new_template_excel(dictionary, file_path, month, sheet_name, row_start, col_start):
     # print(dictionary)
     wb = openpyxl.load_workbook(file_path)
@@ -425,6 +433,8 @@ def write_groups_to_new_template_excel(dictionary, file_path, month, sheet_name,
     
     if 'Group' in sheet_name:
         template_sheet = wb["Group - Template"]  # Assuming the data should be written to Sheet1
+    elif 'Net' in sheet_name:
+        template_sheet = wb["Net Grouped - Template"]
     else:
         template_sheet = wb["All - Template"]  # Assuming the data should be written to Sheet1
 
@@ -445,33 +455,114 @@ def write_groups_to_new_template_excel(dictionary, file_path, month, sheet_name,
     weekend_fill = PatternFill(start_color='D3DEF1', end_color='D3DEF1', fill_type='solid')
 
     # Write data to the table
-    row_idx = row_start
     col_idx = col_start
     
     for groupName, groupData in dictionary.items():
-        splitName = groupName.split(' - ')
+        groupData
+        splitName = groupName.split(' : ')
         print(splitName)
-        areaName = splitName[0]
-        subtypeName = splitName[1]
-        if 'All' not in groupName:
-            update_merged_cell_value(sheet, row_idx, 1, subtypeName)
-            print(row_idx, col_idx)
-            for date, value in groupData:
-                # if value == 0:
-                #     value = ''
-                cell = sheet.cell(row=row_idx, column=col_idx, value=value)
-                if col_idx in weekend_cols:
-                    cell.fill = weekend_fill
-                col_idx += 1
-            row_idx += 1
-            col_idx = col_start
-        else:
-            update_merged_cell_value(sheet, row_idx, 1, areaName)
-            row_idx += 1
+        if len(splitName) == 2:
+            areaName = splitName[0]
+            subtypeName = splitName[1]
+            areaF = False
+        else: 
+            areaName = 'Not Applicable'
+            subtypeName = splitName[0]
+            areaF = True
+        for index, row in enumerate(sheet.iter_rows(min_row=0, max_row=sheet.max_row)):
+            row_content = [cell.value for cell in row]
+            print(subtypeName, ' ', row_content[0])
+            if row_content[0] == areaName:
+                areaF = True
+            elif areaF and (subtypeName in str(row_content[0])):
+                for date, value in groupData:
+                    cell = sheet.cell(row=index+1, column=col_idx, value=value)
+                    if col_idx in weekend_cols:
+                        cell.fill = weekend_fill
+                    col_idx += 1
+                col_idx = col_start
+                areaF = False
+                break
+
+
+    # for groupName, groupData in dictionary.items():
+    #     splitName = groupName.split(' - ')
+    #     # print(splitName)
+    #     areaName = splitName[0]
+    #     subtypeName = splitName[1]
+    #     if 'SUB' not in groupName:
+    #         update_merged_cell_value(sheet, row_idx, 1, subtypeName)
+    #         print(row_idx, col_idx)
+    #         for date, value in groupData:
+    #             cell = sheet.cell(row=row_idx, column=col_idx, value=value)
+    #             if col_idx in weekend_cols:
+    #                 cell.fill = weekend_fill
+    #             col_idx += 1
+    #         row_idx += 1
+    #         col_idx = col_start
+    #     else:
+    #         update_merged_cell_value(sheet, row_idx, 1, areaName)
+    #         row_idx += 1
 
     set_uniform_spacing(sheet, month_col_start, col_end + 2, 4)
 
     wb.save(file_path)
+
+# def write_groups_to_new_template_excel(dictionary, file_path, month, sheet_name, row_start, col_start):
+#     # print(dictionary)
+#     wb = openpyxl.load_workbook(file_path)
+    
+#     # Check if a sheet with the same name already exists
+#     if sheet_name in wb.sheetnames:
+#         wb.remove(wb[sheet_name])  # Remove the existing sheet
+    
+#     if 'Group' in sheet_name:
+#         template_sheet = wb["Group - Template"]  # Assuming the data should be written to Sheet1
+#     else:
+#         template_sheet = wb["All - Template"]  # Assuming the data should be written to Sheet1
+
+#     new_sheet_name = sheet_name
+#     sheet = wb.copy_worksheet(template_sheet)
+#     sheet.title = new_sheet_name
+
+#     update_merged_cell_value(sheet, row_start-3, col_start, month)
+
+#     # Get the number of days in the given month and the index of these
+#     month_num_days = len(dictionary[next(iter(dictionary))])
+#     month_col_start = col_start # 1 = A, 2 = B, 3 = C
+#     col_end = month_num_days + month_col_start
+
+#     dates = [date for date, value in dictionary[next(iter(dictionary))]]
+#     # Find the column indices of the weekend dates
+#     weekend_cols = [col_idx for col_idx, date in enumerate(dates, start=month_col_start) if is_weekend_day(date)]
+#     weekend_fill = PatternFill(start_color='D3DEF1', end_color='D3DEF1', fill_type='solid')
+
+#     # Write data to the table
+#     row_idx = row_start
+#     col_idx = col_start
+    
+#     for groupName, groupData in dictionary.items():
+#         splitName = groupName.split(' - ')
+#         # print(splitName)
+#         areaName = splitName[0]
+#         subtypeName = splitName[1]
+#         if 'SUB' not in groupName:
+#             update_merged_cell_value(sheet, row_idx, 1, subtypeName)
+#             print(row_idx, col_idx)
+#             for date, value in groupData:
+#                 cell = sheet.cell(row=row_idx, column=col_idx, value=value)
+#                 if col_idx in weekend_cols:
+#                     cell.fill = weekend_fill
+#                 col_idx += 1
+#             row_idx += 1
+#             col_idx = col_start
+#         else:
+#             update_merged_cell_value(sheet, row_idx, 1, areaName)
+#             row_idx += 1
+
+#     set_uniform_spacing(sheet, month_col_start, col_end + 2, 4)
+
+#     wb.save(file_path)
 
 def plot_dictionary(dictionary, output_location):
     
@@ -491,7 +582,8 @@ def plot_dictionary(dictionary, output_location):
         # date_usage.insert(0, ['Date',  'Water Usage (m\u00b3)'])
         # date_usage.append(['Up until: ', end_time])
         output_df = pd.DataFrame(date_usage)
-        output_df.to_excel(output_xlsx_filename, index=False)
+        transposed_df = output_df.T
+        transposed_df.to_excel(output_xlsx_filename, index=False)
         date_usage = pad_missing_dates(date_usage)
 
         # Add data to the water meter table 
@@ -589,22 +681,22 @@ def group_meters(original_dict, groups_dict):
 
 start_sequence = '80QWaterUsage'
 file_type = '.csv'
-output_folder = 'WATER/From EBI/Sep-Nov2023/Water_Plot_Data'
-desired_month = 'November'
-desired_month = 'October'
-desired_month = 'September'
+output_folder = 'WATER/From EBI/Dec-Feb2024/Water_Plot_Data'
+desired_month = 'February'
+desired_month = 'January'
+desired_month = 'December'
 
 # NORMAL BEHAVIOUS
-data_frame = pd.read_excel(f'WATER/From EBI/Sep-Nov2023/WaterMetersSep-Nov.xlsx', 'Data')
+data_frame = pd.read_excel(f'WATER/From EBI/Dec-Feb2024/WaterMetersDec-Feb.xlsx', 'Data')
 meters_data_dict = extract_meter_values(data_frame)
 print(meters_data_dict)
 meters_data_dict_to_plot = trim_data_dictionary(meters_data_dict, desired_month[:3])
 # print(meters_data_dict_to_plot)
 # print(meters_data_dict_to_plot)
 
-template_xlsx = f'WATER/all_water_meters_table.xlsx'
-template_xlsx = f'WATER/all_water_meters_table NEW FORMAT.xlsx'
-
+# template_xlsx = f'WATER/all_water_meters_table.xlsx'
+# template_xlsx = f'WATER/all_water_meters_tableNEWFORMATlocal.xlsx'
+template_xlsx = f'WATER/water_meter_templates.xlsx'
 
 """ Un Comment this to plot and output all the individual meters and then update table with all of them"""
 # water_meter_table_data = plot_dictionary(dictionary=meters_data_dict_to_plot, output_location='WATER/Sep-Nov2023/Water_Plot_Data')
@@ -628,29 +720,34 @@ subgroup_add_sub_dict = {}
 # subgroup_add_sub_dict['BNZ Flushing (M13+M16+M15)'] = [['M13', 'M15', 'M16'], []]
 # subgroup_add_sub_dict['Deloitte Flushing (M14+M18)'] = [['M14', 'M18'], []]
 
-subgroup_add_sub_dict['Basement - Usage'] = [['M11', 'M12'], []]
-subgroup_add_sub_dict['Basement - Harvest'] = [['M13', 'M14'], []]
-subgroup_add_sub_dict['Basement - SUB'] = [['M11', 'M13', 'M12', 'M14'], []]
+subgroup_add_sub_dict['Basement : Usage'] = [['M11', 'M12'], []]
+subgroup_add_sub_dict['Basement : Harvest'] = [['M13', 'M14'], []]
+subgroup_add_sub_dict['Basement : Net'] = [['M11', 'M12'], ['M13', 'M14']]
 
-subgroup_add_sub_dict['Common Areas - Usage'] = [['M5', 'M6', 'M7', 'M8', 'M9', 'M4', 'M3', 'M10'], []]
-subgroup_add_sub_dict['Common Areas - Harvest'] = [['M17', 'M15', 'M19', 'M20'], []]
-subgroup_add_sub_dict['Common Areas - SUB'] = [['M5', 'M6', 'M7', 'M8', 'M9', 'M17', 'M4', 'M15', 'M3', 'M10', 'M19', 'M20'],  []]
+subgroup_add_sub_dict['Common Areas : Usage'] = [['M5', 'M6', 'M7', 'M8', 'M9', 'M4', 'M3', 'M10'], []]
+subgroup_add_sub_dict['Common Areas : Harvest'] = [['M17', 'M15', 'M19', 'M20'], []]
+subgroup_add_sub_dict['Common Areas : Net'] = [['M5', 'M6', 'M7', 'M8', 'M9', 'M4', 'M3', 'M10'],  ['M17', 'M15', 'M19', 'M20']]
 
-subgroup_add_sub_dict['Level 01-08 - Usage'] = [['M1'], []]
-subgroup_add_sub_dict['Level 01-08 - Harvest'] = [['M16'], []]
-subgroup_add_sub_dict['Level 01-08 - SUB'] = [['M1', 'M16'], []]
+subgroup_add_sub_dict['Levels 01 - 08 : Usage'] = [['M1'], []]
+subgroup_add_sub_dict['Levels 01 - 08 : Harvest'] = [['M16'], []]
+subgroup_add_sub_dict['Levels 01 - 08 : Net'] = [['M1'], ['M16']]
 
-subgroup_add_sub_dict['Level 09-18 - Usage'] = [['M2', 'M2-09-1', 'M2-09-2', 'M2-10-1', 'M2-10-2'], []]
-subgroup_add_sub_dict['Level 09-18 - Harvest'] = [['M18', 'M18-09', 'M18-10'], []]
-subgroup_add_sub_dict['Level 09-18 - All'] = [['M2', 'M18', 'M2-09-1', 'M2-09-2', 'M18-09', 'M2-10-1', 'M2-10-2', 'M18-10'], []]
+subgroup_add_sub_dict['Levels 09 - 18 : Usage'] = [['M2', 'M2-09-1', 'M2-09-2', 'M2-10-1', 'M2-10-2'], []]
+subgroup_add_sub_dict['Levels 09 - 18 : Harvest'] = [['M18', 'M18-09', 'M18-10'], []]
+subgroup_add_sub_dict['Levels 09 - 18 : Net'] = [['M2', 'M2-09-1', 'M2-09-2', 'M2-10-1', 'M2-10-2'], ['M18', 'M18-09', 'M18-10']]
 
 sub_group_dict = group_meters(meters_data_dict_to_plot, subgroup_add_sub_dict)
 
 # print("--------------------------------------------------------------\n", sub_group_dict, "\n----------------------------------------------------------------------")
 # Get plots
-# water_meter_table_data = plot_dictionary(dictionary=meters_data_dict_to_plot, output_location=f'WATER/From EBI/Sep-Nov2023/Water_Plot_Data/{desired_month[:3]}')
-water_meter_grouped_table_data = plot_dictionary(dictionary=sub_group_dict, output_location=f'WATER/From EBI/Sep-Nov2023/Water_Grouped_Plot_Data/{desired_month[:3]}')
+# water_meter_table_data = plot_dictionary(dictionary=meters_data_dict_to_plot, output_location=f'WATER/From EBI/Dec-Feb2024/Water_Plot_Data/{desired_month[:3]}')
 
+# water_meter_grouped_table_data = plot_dictionary(dictionary=sub_group_dict, output_location=f'WATER/From EBI/Dec-Feb2024/Water_Grouped_Plot_Data/{desired_month[:3]}')
 
-# write_all_data_to_new_template_excel(meters_data_dict_to_plot, subgroup_add_sub_dict, template_xlsx, desired_month, desired_month[:3], row_start=4, col_start=3)
-# write_groups_to_new_template_excel(sub_group_dict, template_xlsx, desired_month, "Groups - "+desired_month[:3], row_start=5, col_start=3)
+print(meters_data_dict_to_plot)
+print(sub_group_dict)
+
+write_groups_to_new_template_excel(sub_group_dict, template_xlsx, desired_month, "Groups - "+desired_month[:3], row_start=5, col_start=3)
+write_groups_to_new_template_excel(sub_group_dict, template_xlsx, desired_month, "Nets - "+desired_month[:3], row_start=5, col_start=3)
+print(meters_data_dict_to_plot)
+write_groups_to_new_template_excel(meters_data_dict_to_plot, template_xlsx, desired_month, "All - "+desired_month[:3], row_start=5, col_start=3)

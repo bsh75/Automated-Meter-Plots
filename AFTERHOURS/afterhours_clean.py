@@ -34,6 +34,7 @@ def get_ahrs_data(df, gap):
             name_data_dict[location_names[i]] = df.iloc[start_indexs[i]+gap:start_indexs[i+1], [0, 3]]
     data_to_add = df.iloc[start_indexs[-1]+gap:, [0, 3]]
     name_data_dict[location_names[-1]] = data_to_add
+    print(name_data_dict)
     return name_data_dict
 
     # with open(filename, 'r') as csvfile:
@@ -96,105 +97,36 @@ def plot_water_usage_with_accumulation(data, meter, output_filename):
     plt.close()
 
 def trim_data_dictionary(dictionary, month):
-    """ Takes a dictionary containing the meters and all the timepoints for them and returns a similar dictionary 
+    """ Takes a dictionary containing the floors and all the timepoints for them and returns a similar dictionary 
         containing only the useful timepoints (12am 11:55pm and the first and last)"""
     new_dictionary = {}
-    for meter, data_set in dictionary.items():
+    for floor, data_set in dictionary.items():
         # Get the dates and values 
-        dates = [date.replace(' NZST', '') for date in data_set['dates_col'].tolist()]
+        dates = [date.replace(' NZDT', '') for date in data_set['dates_col'].tolist()] # Remove the " NZDT"
         values = [int(value[0:-3]) for value in data_set['values_col'].tolist()]
 
-        # Limit the dates to be just the month requested
-        for i in range(0, len(dates)):
-            if month in dates[i]:
-                break
-        dates = dates[i:]
-        values = values[i:]
-
         wanted_dates_values = []
-        
-        # The first date and value are set as the past date/value
-        past_date = dates[0][:9]
-        past_value = values[0]
+        first = True
 
         for i in range(1, len(dates)):
             current_date = dates[i][:9]
-            current_value = values[i]
-            if (current_date != past_date):
-                # If current date is different to the past the take the difference in values to be the past dates usage
-                wanted_dates_values.append((past_date, past_value))
-                past_date = current_date
-                past_value = current_value
+            if month in current_date:
+                if first:
+                    wanted_dates_values.append((current_date, values[i+1])) # Add the first (date, value) Tup
+                    past_date = dates[i][:9] # Gets the date only (not time) 
+                    first = False
+                    month_yr_str = current_date[3:]
+                elif (current_date != past_date):
+                    # If current date is different to the past the take the difference in values to be the past dates usage
+                    wanted_dates_values.append((current_date, values[i+1]))
+                    past_date = current_date
+                else:
+                    continue
             else:
                 continue
-
-        # Add the last entry (and also get the last time for the last date)
-        wanted_dates_values.append((dates[-1][:9], values[-1]))
-        new_dictionary[meter] = wanted_dates_values
-
-    return new_dictionary
-
-
-# def create_heatmap(data, output_filename):
-#     wb = Workbook()
-#     ws = wb.active
-
-#     # Get unique dates and floors
-#     dates = sorted(set(date for floor_data in data.values() for date, _ in floor_data))
-#     floors = list(data.keys())
-
-#     # Define colors for alternating rows and weekend columns
-#     alternating_row_colors = [PatternFill(start_color='FFFFFF', end_color='D9E1F2', fill_type='solid'),
-#                               PatternFill(start_color='F2F2F2', end_color='D9E1F2', fill_type='solid')]
-#     weekend_column_colors = PatternFill(start_color='A6C9E2', end_color='A6C9E2', fill_type='solid')
-
-#     # Create headers (dates) in the first row and apply weekend column colors
-#     for col_idx, date in enumerate(dates, start=2):
-#         cell = ws.cell(row=1, column=col_idx, value=date)
-#         if pd.to_datetime(date).dayofweek >= 5:  # 5 and 6 represent Saturday and Sunday (weekend)
-#             cell.fill = weekend_column_colors
-
-#     # Create rows for each floor and fill the values
-#     for row_idx, floor in enumerate(floors, start=2):
-#         ws.cell(row=row_idx, column=1, value=floor)
-#         floor_data = data[floor]
-#         total_mins = 0
-#         for col_idx, date in enumerate(dates, start=2):
-#             value = next((val for d, val in floor_data if d == date), None)
-#             if value is not None:
-#                 ws.cell(row=row_idx, column=col_idx, value=value)
-#                 total_mins += value
-#                 # Apply alternating row colors
-#                 ws.cell(row=row_idx, column=col_idx).fill = alternating_row_colors[row_idx % 2]
-
-#         # Calculate total in hours and minutes
-#         total_hrs = total_mins // 60
-#         remaining_mins = total_mins % 60
-#         ws.cell(row=row_idx, column=len(dates) + 2, value=total_mins)  # Total in minutes
-#         ws.cell(row=row_idx, column=len(dates) + 3, value=f"{total_hrs} hrs {remaining_mins} mins")  # Total in hours and minutes
-
-#     # Apply conditional formatting to create the colorscale on text
-#     min_value = min(value for floor_data in data.values() for _, value in floor_data)
-#     max_value = max(value for floor_data in data.values() for _, value in floor_data)
-
-#     # Apply colorscale to the range of cells
-#     for row in ws.iter_rows(min_row=2, max_row=len(floors) + 1, min_col=2, max_col=len(dates) + 1):
-#         for cell in row:
-#             if cell.value is not None:
-#                 normalized_value = (cell.value - min_value) / (max_value - min_value)
-#                 red = 0xFF
-#                 green = int(0xFF * (1 - normalized_value))
-#                 blue = 0x00
-#                 # Set the font color based on the normalized value
-#                 cell_font = Font(color=f'{red:02X}{green:02X}{blue:02X}')
-#                 cell.font = cell_font
-
-#     # Add header for the total columns
-#     ws.cell(row=1, column=len(dates) + 2, value="Total (mins)")
-#     ws.cell(row=1, column=len(dates) + 3, value="Total (hrs)")
-
-#     # Save the workbook
-#     wb.save(output_filename)
+        new_dictionary[floor] = wanted_dates_values
+    print('\n',new_dictionary,'\n\n')
+    return new_dictionary, month_yr_str
 
 def set_uniform_spacing(worksheet, start_column, end_column, width):
     for col_idx in range(start_column, end_column + 1):
@@ -227,8 +159,8 @@ def is_weekend_day(date_string):
 
 def write_data_to_excel(dictionary, file_path, month):
     wb = openpyxl.load_workbook(file_path)
-    template_sheet = wb["template"]  # Assuming the data should be written to Sheet1
-
+    template_sheet = wb["template"]
+    
     new_sheet_name = month
     sheet = wb.copy_worksheet(template_sheet)
     sheet.title = new_sheet_name
@@ -295,31 +227,37 @@ def write_data_to_excel(dictionary, file_path, month):
 
 start_sequence = 'Level'
 file_type = '.csv'
-folder = '2023 12 Dec'
-output_folder = 'Plot Data'
+folder = input("Enter the name of the folder containing raw data: ")
+month_guess = folder[-3:]
+month_input = input(f"Is '{month_guess}' the correct month? (Type 'Y' or abbreviated month): ")
+if month_input == "Y":
+    desired_month = month_guess
+else:
+    desired_month = month_input
+
+# folder = 'AFTERHOURS/Aug-Sep'AFTERHOURS/Aug-Sep
+
 name_gap = 4
 file_list = os.listdir(folder)
-desired_month = 'Dec'
 
-data = []
+floor_dict_List = []
 
 for file in file_list:
     if file.endswith(file_type) and file.startswith(start_sequence):
         # If file is suitable then find a dictionary containing all the different items in that file, and their date_date tuples
         input_csv_path = f'{folder}/{file}'
         data_frame = pd.read_csv(input_csv_path, names=["dates_col", "col2", "col3", "values_col"])
-        mins_data_dict = get_ahrs_data(data_frame, name_gap)
-        date_data_dict = trim_data_dictionary(mins_data_dict, desired_month)
-        data.append(date_data_dict)
-        print('\n', date_data_dict)
+        floor_data_dict = get_ahrs_data(data_frame, name_gap)
+        date_usage_dict, month_year = trim_data_dictionary(floor_data_dict, desired_month)
+        floor_dict_List.append(date_usage_dict)
+        print('\n', date_usage_dict)
 
-# Trim data to be just one dictionary for ease of use
+# Combine data to be just one dictionary for ease of use
 single_dictionary = {}
-for dictionary in data:
-    for meter, date_data in dictionary.items():
+for floor_dict in floor_dict_List:
+    for meter, date_data in floor_dict.items():
         single_dictionary[meter] = date_data
 
 template_xlsx = 'after_hours_tables_local.xlsx'
-# print(single_dictionary)
 
-write_data_to_excel(single_dictionary, template_xlsx, desired_month)
+write_data_to_excel(single_dictionary, template_xlsx, month_year)

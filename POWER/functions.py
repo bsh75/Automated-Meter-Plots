@@ -238,17 +238,17 @@ def plot_dates_vs_total_from_CLASS(obj, output_filename):
 
     # Set constant limits to the Y axis of each
     if 'Basement' in obj.name:
-        ax1.set_ylim(0, 300)
-        ax2.set_ylim(0, 7200)
+        ax1.set_ylim(0, 500)
+        ax2.set_ylim(0, 12200)
     elif 'Common' in obj.name:
-        ax1.set_ylim(0, 25000)
-        ax2.set_ylim(0, 600000)
+        ax1.set_ylim(0, 20000)
+        ax2.set_ylim(0, 400000)
     elif 'Level 01' in obj.name:
         ax1.set_ylim(0, 3700)
-        ax2.set_ylim(0, 90000)
+        ax2.set_ylim(0, 80000)
     elif 'Level 09' in obj.name:
         ax1.set_ylim(0, 2500)
-        ax2.set_ylim(0, 60000)
+        ax2.set_ylim(0, 50000)
 
     # # Convert the dates to datetime objects
     dates_strings = [datetime.strftime(date, "%d-%b-%y") for date in dates]
@@ -260,7 +260,7 @@ def plot_dates_vs_total_from_CLASS(obj, output_filename):
 
     ax1.set_xlabel('Day')
     ax1.set_ylabel('Usage (kwH)')
-    ax1.set_title(f'Dates vs. Usage for {obj.name}')
+    # ax1.set_title(f'Dates vs. Usage for {obj.name}')
     # ax1.grid(axis='y', linestyle='--', alpha=0.7)
 
 

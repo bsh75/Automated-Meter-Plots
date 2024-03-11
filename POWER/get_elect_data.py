@@ -1,7 +1,13 @@
 from functions import *
 
-month_folder = 'POWER/2023 11 November'  
-currentMonth = 'Nov'
+month_folder = 'POWER/2023 12 December'  
+currentMonth = 'Dec'
+
+month_folder = 'POWER/2024 01 January'  
+currentMonth = 'Jan'
+
+month_folder = 'POWER/2024 02 February'  
+currentMonth = 'February'
 
 raw_data_folder = 'Raw_Elec_Data'
 input_data_path = f"{month_folder}/{raw_data_folder}"
@@ -19,7 +25,7 @@ for filename in input_files:
         file_path = f"{input_data_path}/{filename}"
         print(f"Extracting Data From: {filename}")
         # extract_meters_into_class(file_path, all_METERS_list)
-        extract_PN_meters_into_dict(file_path, all_METERS_dict)
+        extract_PN_meters_into_dict(file_path, all_METERS_list)
 
 for meter in all_METERS_list:
     print(meter.dates)
@@ -91,16 +97,17 @@ for key, value in grouped_meterslist_dict.items():
         group_meter.on_peaks = Nov_onP
         group_meter.weekends = Nov_Wk
         group_meter.totals = Nov_Ttl
-        
+
+    """BELOW IS MAIN FUNCITON FOR CREATING PLOTS"""
     plot_dates_vs_total_from_CLASS(group_meter, output_filename=f"{output_data_path}/{group_meter.name}")
-    # group_classes_to_plot.append(combine_meters_in_list_to_class(grouped_METER_list=value, grouped_meter_name=key))
+    group_classes_to_plot.append(combine_meters_in_list_to_class(grouped_METER_list=value, grouped_meter_name=key))
 
 # # # # Plot each of the groups and save data to excel
 # for each_group in group_classes_to_plot:
 #     print(each_group.name)
 #     print(each_group.on_peaks, '\n')
 #     plot_dates_vs_total_from_CLASS(each_group, output_filename=f"{output_data_path}/{each_group.name}")
-
+# 
 # Fill out sheets showing all the meter data
 # write_all_data_to_excel(all_METERS_list, 'POWER/all_power_meters_table.xlsx', month='Aug', output_sheet_name='Aug')
 
@@ -111,6 +118,8 @@ for key, value in grouped_meterslist_dict.items():
 #     print(meter.name)
 #     print(meter.on_peaks)
 
+"""BELOW IS MAIN FUNCITON FOR WRITING DATA TO EXCEL"""
 # write_groups_to_excel(group_classes_to_plot, 'POWER/80 Queen St - Analytics Report - Calendar Data.xlsx', currentMonth, currentMonth+'-grouped', dates_row=3)
 
 # write_all_data_grouped_to_excel(grouped_meterslist_dict, 'POWER/80 Queen St - Analytics Report - Calendar Data.xlsx', currentMonth, currentMonth, dates_row=4)
+
