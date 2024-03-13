@@ -1,16 +1,16 @@
 # Step 1: Read the CSV file and extract columns A and D
-import csv
+# import csv
 import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime
 import os
 import openpyxl
-from openpyxl.utils.dataframe import dataframe_to_rows
+# from openpyxl.utils.dataframe import dataframe_to_rows
 from openpyxl.styles import PatternFill
-from openpyxl import Workbook
-from openpyxl.formatting.rule import ColorScaleRule, ColorScale
-from openpyxl.styles import Font, PatternFill
-from openpyxl.utils import get_column_letter
+# from openpyxl import Workbook
+# from openpyxl.formatting.rule import ColorScaleRule, ColorScale
+# from openpyxl.styles import Font, PatternFill
+# from openpyxl.utils import get_column_letter
 import calendar
 
 print(openpyxl.__version__)
@@ -157,18 +157,54 @@ def is_weekend_day(date_string):
     # Check if the day of the week is Saturday (5) or Sunday (6)
     return date_obj.weekday() in [5, 6]
 
-def write_data_to_excel(dictionary, file_path, month):
+def row_lookup(row_heading, floor_name):
+    """Determines if the current row is correct based on the name of the floor from raw data"""
+    floor_mapping = {
+    '1': 'L01_',
+    '2': 'L02_',
+    '3': 'L03_',
+    '4': 'L04_',
+    '5': 'L05_',
+    '6': 'L06_',
+    '7': 'L07_',
+    '8': 'L08_',
+    '9': 'L09_',
+    '10': 'L10_',
+    '11': 'L11_',
+    '12': 'L12_',
+    '13': 'L13_',
+    '14': 'L14_',
+    '15': 'L15_',
+    '16': 'L16_',
+    '17': 'L17_',
+    '18': 'L18_'
+    }
+    # print(floor_mapping[row_heading], '   ', floor_name)
+    try:
+        floor_prefix = floor_mapping[str(row_heading)]
+        if floor_prefix in floor_name:
+            return True
+    except KeyError as e:
+        return False
+    
+def write_data_to_excel(dictionary, file_path, month, dates_row):
     wb = openpyxl.load_workbook(file_path)
     template_sheet = wb["template"]
     
     new_sheet_name = month
+    # Check if a sheet with the same name already exists (deletes duplicates)
+    if new_sheet_name in wb.sheetnames:
+        wb.remove(wb[new_sheet_name])  # Remove the existing sheet
+        
     sheet = wb.copy_worksheet(template_sheet)
     sheet.title = new_sheet_name
 
     update_merged_cell_value(sheet, 1, 2, month)
 
     # Get the number of days in the given month
-    month_num_days = calendar.monthrange(2023, list(calendar.month_abbr).index(month[:3]))[1]
+    print(month)
+    month_year = month.split('-')[1]
+    month_num_days = calendar.monthrange(int(f'20{month_year}'), list(calendar.month_abbr).index(month[:3]))[1]
     # month_num_days = 28
 
     # Delete excess columns in the template sheet
@@ -178,13 +214,13 @@ def write_data_to_excel(dictionary, file_path, month):
         # Create a list of columns to delete in reverse order
         cols_to_delete = [col_idx for col_idx in range(col_start + month_num_days + 1, col_end + 1)]
         for col_idx in cols_to_delete:
-            print(f"Deleting col: {col_idx-1}")
-            sheet.delete_cols(col_idx-1)
+            print(sheet.cell(row=dates_row, column=col_idx-1))
+            cell = sheet.cell(row=dates_row, column=col_idx-1, value='NA')
 
     wb.save(file_path)
 
     col_start = 2
-    col_end = sheet.max_column - 1
+    col_end = col_start + month_num_days
 
     # Get the dates in the first row starting from column B and format them in the same format as dictionary dates
     dates = [sheet.cell(row=2, column=col_idx).value for col_idx in range(col_start, col_end)]
@@ -203,34 +239,37 @@ def write_data_to_excel(dictionary, file_path, month):
     weekend_cols = [col_idx for col_idx, date in enumerate(dates, start=col_start) if is_weekend_day(date)]
 
     # Write data to the table
-    row_idx = 3
-    for floor, values in dictionary.items():
-        # Write the values corresponding to the dates in the table
-        for date_str, value in values:
-            if desired_month in date_str:
-                col_idx = date_map[date_str]
-                # Remove any 0's
-                if value == 0:
-                    value = ''
-                cell = sheet.cell(row=row_idx, column=col_idx, value=value)
+    col_idx = col_start
+    for floor_name, floor_data in dictionary.items():
+        # Place the data for each row in the correct row
+        for index, row in enumerate(sheet.iter_rows(min_row=0, max_row=sheet.max_row)):
+            row_content = [cell.value for cell in row]
+            if row_lookup(row_content[0], floor_name):
+                for date, value in floor_data:
+                    if value == 0:
+                        value = ''
+                    cell = sheet.cell(row=index+1, column=col_idx, value=value)
+                    col_idx += 1
+                col_idx = col_start
 
-        # Apply the weekend_fill to the entire row for the weekend dates
-        for col in weekend_cols:
-            weekend_cell = sheet.cell(row=row_idx, column=col)
-            weekend_cell.fill = weekend_fill
-
-        row_idx += 1
+            if index >= dates_row:
+                for col in weekend_cols:
+                    weekend_cell = sheet.cell(row=index+1, column=col)
+                    weekend_cell.fill = weekend_fill
 
     set_uniform_spacing(sheet, col_start, col_end + 2, 4)
 
     wb.save(file_path)
 
+
+    
+
 start_sequence = 'Level'
 file_type = '.csv'
-folder = input("Enter the name of the folder containing raw data: ")
+folder = 'AFTERHOURS/' + input("Enter the name of the folder containing raw data: ")
 month_guess = folder[-3:]
-month_input = input(f"Is '{month_guess}' the correct month? (Type 'Y' or abbreviated month): ")
-if month_input == "Y":
+month_input = input(f"Is '{month_guess}' the correct month? (Presss 'Enter' or Type abbreviated month): ")
+if month_input == "":
     desired_month = month_guess
 else:
     desired_month = month_input
@@ -258,6 +297,21 @@ for floor_dict in floor_dict_List:
     for meter, date_data in floor_dict.items():
         single_dictionary[meter] = date_data
 
-template_xlsx = 'after_hours_tables_local.xlsx'
 
-write_data_to_excel(single_dictionary, template_xlsx, month_year)
+output_all_table_name = f'OUTPUT_afterhours_table_{desired_month}.xlsx'
+output_folder = f'{folder}/Outputs'
+afterhours_output_table = f'{output_folder}/{output_all_table_name}'
+
+if os.path.exists(afterhours_output_table):
+    template_xlsx = afterhours_output_table
+else:
+    if os.path.exists(output_folder):
+        template_xlsx = 'AFTERHOURS/TEMPLATE_afterhours_table.xlsx'
+    else:
+        print(f"Folder '{output_folder}' created.")
+        os.makedirs(output_folder)
+
+wb = openpyxl.load_workbook(template_xlsx)
+wb.save(afterhours_output_table)
+
+write_data_to_excel(single_dictionary, afterhours_output_table, month_year, dates_row=2)
